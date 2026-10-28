@@ -12,7 +12,7 @@ assert.match(script, /data-game-id=/, "Schedule tiles should be actionable butto
 assert.match(script, /if \(game\) simulateThroughRound\(game\.round\)/, "Clicking a later game should simulate earlier rounds too.");
 assert.match(script, /\$\('simulate'\)\.onclick = simulateNextSeasonGame/, "The simple match button should advance the season calendar.");
 assert.match(script, /won \? 'Victoire' : 'Défaite'/, "Completed games should display a readable result.");
-assert.match(script, /\.schedule-game\.loss \.game-status/, "Defeats should be styled in red.");
+assert.match(html, /\.schedule-game\.loss \.game-status/, "Defeats should be styled in red.");
 assert.doesNotMatch(script, /<span class="score">/, "Schedule tiles should not display scores.");
 assert.match(script, /phase !== 'idle'/, "Victory/defeat labels should be hidden during the offseason.");
 assert.match(script, /function simulateThroughRound\(targetRound\)/, "Season progression should be round-based.");
