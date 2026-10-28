@@ -67,7 +67,7 @@
 
   function generateSeasonCalendar(inputTeams, options = {}) {
     const teams = normalizeTeams(inputTeams);
-    const gamesPerTeam = Number(options.gamesPerTeam || 82);
+    const gamesPerTeam = options.gamesPerTeam == null ? 82 : Number(options.gamesPerTeam);
     if (!Number.isInteger(gamesPerTeam) || gamesPerTeam < 1) {
       throw new Error("gamesPerTeam doit être un entier positif.");
     }
