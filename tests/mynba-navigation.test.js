@@ -22,7 +22,7 @@ assert.match(nav, /data-tendency="shot"/, "Shot tendency should be editable in t
 assert.match(nav, /data-tendency="touch"/, "Touch tendency should be editable in the roster.");
 assert.match(html, /players\.filter\(p => window\.NBAMyNBAIsRostered\(p\)\)/, "Season stats should be generated only for active roster players.");
 assert.match(html, /window\.NBAMyNBATendency/, "Player tendencies should influence season statistics.");
-assert.match(nav, /data-coach="performanceFactor"/, "Coach performance factor should be adjustable.");
+assert.match(nav, /performanceFactor:"Facteur de performance"/, "Coach performance factor should be adjustable.");
 assert.match(nav, /data-plan=/, "Gameplan minutes should be editable.");
 for (const stat of ["MIN", "PTS", "FG", "3PT", "FT", "REB", "AST", "STL", "BLK", "TO", "PF", "+/-"]) {
     assert.ok(nav.includes("<th>" + stat + "</th>"), "Missing box-score column: " + stat);
