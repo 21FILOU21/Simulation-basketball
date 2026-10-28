@@ -223,6 +223,10 @@
         .playoff-game.loss .game-score { color:#ff4545 }
         .playoff-game.win .game-score { color:#39d98a }
         .playoff-controls { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 }
+        .playoff-game.completed { border-color:#45617f; }
+        .playoff-game.completed .game-score { color:var(--muted); }
+        #seasonAwardsScreen { border:2px solid var(--gold); box-shadow:0 0 35px #ffd16622; }
+        #enterPlayoffs { margin-top:12px; min-height:48px; }
         .award-reveal { border:1px solid #8d7536; background:linear-gradient(135deg,#18233a,#0b1527); border-radius:16px; padding:18px; margin:12px 0 }
         .award-reveal h3 { color:var(--gold); margin-top:0 }
         .finals-mvp { border:2px solid var(--gold); padding:16px; border-radius:14px; margin:10px 0; background:#1c2435 }
@@ -517,17 +521,23 @@
             <div id="seasonCalendarView"><div class="schedule-empty">Aucun calendrier généré pour le moment.</div></div>
         </section>
 
-        <section class="panel" id="playoffsSection">
+        <section class="panel" id="seasonAwardsScreen" hidden>
+            <h2>🏆 FIN DE SAISON RÉGULIÈRE</h2>
+            <p>Les 82 matchs sont terminés. Voici les récompenses de la saison. Appuie sur Entrée ou sur le bouton pour accéder au tableau des playoffs.</p>
+            <div id="seasonAwardsTransitionBox"></div>
+            <button class="btn gold" id="enterPlayoffs" type="button">↵ Entrer dans les playoffs</button>
+        </section>
+
+        <section class="panel" id="playoffsSection" hidden>
             <h2>05 — Séries éliminatoires</h2>
             <p>Les 8 premiers de chaque conférence, séries au meilleur des 7 matchs : 1 vs 8, 4 vs 5, 3 vs 6, 2 vs 7, puis demi-finales, finales de conférence et finale NBA.</p>
             <div class="champ" id="champBanner"></div>
             <div id="playoffControls" class="playoff-controls" hidden>
-                <button class="btn primary" id="simulatePlayoffGame" disabled>Simuler partie sélectionnée</button>
-                <button class="btn orange" id="simulatePlayoffRound" disabled>Simuler round au complet</button>
-                <button class="btn gold" id="simulatePlayoffs" disabled>Simuler Playoffs (jusqu’aux finales de conférence)</button>
-                <span id="playoffSelectionHint" class="muted">Sélectionne une tuile de match.</span>
+                <button class="btn primary" id="viewPlayoffBoxScore" type="button" hidden>Voir box score</button>
+                <span id="playoffSelectionHint" class="muted">Sélectionne un match des playoffs.</span>
             </div>
             <div class="bracket" id="bracket"></div>
+            <div id="playoffBoxScore" class="award-reveal" hidden aria-live="polite"></div>
             <div id="finalsMvpScreen" hidden></div>
         </section>
 
@@ -1444,6 +1454,8 @@
             phase = 'playoffs';
             selectedPlayoffGameId = null;
             $('seasonStatus').textContent = 'Les séries commencent. Sélectionne un match et clique sur « Simuler partie », ou simule le round complet.';
+            $('seasonSection').hidden = true;
+            $('seasonAwardsScreen').hidden = true;
             $('runPlayoffs').textContent = 'Séries en cours';
             renderAll();
         }
@@ -1547,33 +1559,54 @@
                 const homeWin = game.completed && game.winnerCode === game.home.code;
                 const awayWin = game.completed && game.winnerCode === game.away.code;
                 const selected = selectedPlayoffGameId === game.id;
-                return `<button type="button" class="playoff-game ${selected ? 'selected' : ''} ${homeWin ? 'win' : awayWin ? 'loss' : ''}" data-playoff-game="${game.id}" ${game.completed || series.winner || !isActivePlayoffSeries(series) ? 'disabled' : ''} aria-pressed="${selected}">
-                    <span>G${game.number} · ${esc(game.home.code)} vs ${esc(game.away.code)}</span><span class="game-score">${game.completed ? `${game.homeScore}–${game.awayScore}` : (selected ? 'Sélectionné' : 'Sélectionner')}</span>
+                return `<button type="button" class="playoff-game completed ${selected ? 'selected' : ''} ${homeWin ? 'win' : awayWin ? 'loss' : ''}" data-playoff-game="${game.id}" aria-pressed="${selected}">
+                    <span>G${game.number} · ${esc(game.home.code)} vs ${esc(game.away.code)}</span><span class="game-score">Partie jouée · Box score</span>
                 </button>`;
             }).join('');
-            const nextGame = !series.winner ? `<button type="button" class="playoff-game ${selectedPlayoffGameId === `${series.id}-G${series.games.length + 1}` ? 'selected' : ''}" data-playoff-game="${series.id}-G${series.games.length + 1}" ${isActivePlayoffSeries(series) ? '' : 'disabled'} aria-pressed="${selectedPlayoffGameId === `${series.id}-G${series.games.length + 1}`}>+ Match ${series.games.length + 1} <span class="game-score">${series.winsA}–${series.winsB}</span></button>` : `<div class="srow won"><b>Gagnant : ${esc(series.winner.name)}</b></div>`;
+            const nextGame = !series.winner ? `<button type="button" class="playoff-game ${selectedPlayoffGameId === `${series.id}-G${series.games.length + 1}` ? 'selected' : ''}" data-playoff-game="${series.id}-G${series.games.length + 1}" ${isActivePlayoffSeries(series) ? '' : 'disabled'} aria-pressed="${selectedPlayoffGameId === `${series.id}-G${series.games.length + 1}`}>+ Match ${series.games.length + 1} <span class="game-score">À jouer</span></button>` : `<div class="srow won"><b>Gagnant : ${esc(series.winner.name)}</b></div>`;
             return `<div class="playoff-series"><h4>${esc(series.a.name)} (${series.winsA}) — ${esc(series.b.name)} (${series.winsB})</h4>${rows}${nextGame}</div>`;
         }
         function isActivePlayoffSeries(series) {
             const round = activePlayoffRound();
             return Boolean(round && round.series.some(s => s.id === series.id) && !series.winner);
         }
+        function isActivePlayoffGameId(gameId) {
+            const round = activePlayoffRound();
+            return Boolean(round && round.series.some(series => !series.winner && `${series.id}-G${series.games.length + 1}` === gameId));
+        }
         function renderConferenceBracket(conf) {
             const rounds = playoffs.confRounds[conf] || [];
             return `<div class="bracket-conference ${conf === 'East' ? 'east' : 'west'}"><h3>${conf === 'West' ? 'OUEST' : 'EST'}</h3>${[0,1,2].map(index => `<div class="playoff-round"><h4>${['1er tour','Demi-finales','Finales de conférence'][index]}</h4>${rounds[index] ? rounds[index].series.map(playoffSeriesCard).join('') : '<p class="muted">En attente des vainqueurs du tour précédent.</p>'}</div>`).join('')}</div>`;
+        }
+        function findPlayoffGame(gameId) {
+            if (!playoffs || !gameId) return null;
+            const seriesList = [...playoffs.confRounds.West, ...playoffs.confRounds.East].flatMap(round => round.series);
+            if (playoffs.final) seriesList.push(playoffs.final);
+            for (const series of seriesList) {
+                const game = series.games.find(item => item.id === gameId);
+                if (game) return { game, series };
+            }
+            return null;
+        }
+        function showPlayoffBoxScore() {
+            const found = findPlayoffGame(selectedPlayoffGameId);
+            if (!found || !found.game.completed) return;
+            const { game, series } = found;
+            const winner = game.winnerCode === game.home.code ? game.home : game.away;
+            $('playoffBoxScore').innerHTML = `<h2>📊 BOX SCORE — MATCH ${game.number}</h2><p>${esc(series.a.name)} vs ${esc(series.b.name)} · ${esc(series.conf === 'West' ? 'Ouest' : series.conf === 'East' ? 'Est' : 'Finale NBA')}</p><div class="stats"><div class="stat"><span>${esc(game.home.name)} · domicile</span><b>${game.homeScore}</b></div><div class="stat"><span>${esc(game.away.name)} · extérieur</span><b>${game.awayScore}</b></div><div class="stat"><span>Vainqueur</span><b>${esc(winner.name)}</b></div><div class="stat"><span>Série</span><b>${series.winsA}–${series.winsB}</b></div></div><p class="muted">Résumé du score de la rencontre. Les statistiques individuelles détaillées ne sont pas encore générées par le moteur des playoffs.</p>`;
+            $('playoffBoxScore').hidden = false;
         }
         function renderPlayoffs() {
             const controls = $('playoffControls');
             controls.hidden = phase !== 'playoffs' || !playoffs;
             $('finalsMvpScreen').hidden = !(playoffs && playoffs.champion && playoffs.finalsMvp);
+            $('playoffBoxScore').hidden = true;
             if (!playoffs) {
                 $('champBanner').innerHTML = '';
-                $('bracket').innerHTML = '<p class="muted">Les séries seront disponibles après les 82 matchs de saison régulière.</p>';
+                $('bracket').innerHTML = '';
                 $('bracket').hidden = true;
-                $('playoffSelectionHint').textContent = 'Sélectionne une tuile de match.';
-                $('simulatePlayoffGame').disabled = true;
-                $('simulatePlayoffRound').disabled = true;
-                $('simulatePlayoffs').disabled = true;
+                $('playoffSelectionHint').textContent = 'Sélectionne un match des playoffs.';
+                $('viewPlayoffBoxScore').hidden = true;
                 return;
             }
             $('bracket').hidden = false;
@@ -1584,13 +1617,12 @@
                 ? `<div class="bracket-center"><h3>FINALE NBA</h3>${playoffSeriesCard(playoffs.final)}</div>`
                 : '<div class="bracket-center"><h3>FINALE NBA</h3><p class="muted">Les champions de l’Est et de l’Ouest se rencontreront ici.</p></div>';
             $('bracket').innerHTML = `${renderConferenceBracket('West')}${center}${renderConferenceBracket('East')}`;
-            const round = activePlayoffRound();
-            const selected = round && round.series.some(series => series.games.some(game => game.id === selectedPlayoffGameId) || `${series.id}-G${series.games.length + 1}` === selectedPlayoffGameId);
-            $('simulatePlayoffGame').disabled = !selected || !round;
-            $('simulate').textContent = phase === 'playoffs' ? 'Simuler la partie sélectionnée' : 'Simuler le match';
-            $('simulatePlayoffRound').disabled = !round || !round.series.some(series => !series.winner);
-            $('simulatePlayoffs').disabled = !round || Boolean(playoffs.final) || playoffs.currentRound >= 3;
-            $('playoffSelectionHint').textContent = selected ? 'Le bouton « Simuler partie » simulera uniquement le match sélectionné.' : 'Sélectionne le prochain match d’une série du tour en cours.';
+            const found = findPlayoffGame(selectedPlayoffGameId);
+            const selectedCompleted = Boolean(found && found.game.completed);
+            $('viewPlayoffBoxScore').hidden = !selectedCompleted;
+            $('playoffSelectionHint').textContent = selectedCompleted
+                ? 'Match joué sélectionné : affiche son box score.'
+                : selectedPlayoffGameId ? 'Match sélectionné : clique à nouveau sur le match pour le simuler.' : 'Sélectionne un match des playoffs.';
             if (playoffs.champion && playoffs.finalsMvp) {
                 $('finalsMvpScreen').innerHTML = `<div class="award-reveal"><h2>🏆 CHAMPIONS NBA ${esc(resultsLabel)}</h2><h3>MVP DES FINALES</h3><div class="finals-mvp"><small>${esc(playoffs.finalsMvp.label)}</small><h2>${esc(playoffs.finalsMvp.name)}</h2><p>${esc(playoffs.finalsMvp.team)} · ${esc(playoffs.finalsMvp.detail)}</p><strong>Champion : ${esc(playoffs.champion.name)}</strong></div></div>`;
             }
@@ -1617,7 +1649,9 @@
                 ['💪','Meilleur rebondeur',best(eligible,x=>x.l.reb)],
                 ['🎩','Meilleur passeur',best(eligible,x=>x.l.ast)]
             ].filter(item=>item[2]);
-            $('awardsBox').innerHTML = `<div class="award-reveal"><h2>🏆 FIN DE SAISON RÉGULIÈRE — ${esc(resultsLabel)}</h2><p>Les récompenses de la saison sont révélées avant le début des playoffs.</p><div class="awards">${candidates.map(([icon,label,x])=>`<div class="award"><small>${icon} ${esc(label)}</small><b>${esc(x.p.name)}</b><span>${esc(x.p.team)} · ${line(x)}</span></div>`).join('')}</div></div>`;
+            const reveal = `<div class="award-reveal"><h2>🏆 FIN DE SAISON RÉGULIÈRE — ${esc(resultsLabel)}</h2><p>Les récompenses de la saison sont révélées avant le début des playoffs.</p><div class="awards">${candidates.map(([icon,label,x])=>`<div class="award"><small>${icon} ${esc(label)}</small><b>${esc(x.p.name)}</b><span>${esc(x.p.team)} · ${line(x)}</span></div>`).join('')}</div></div>`;
+            $('seasonAwardsTransitionBox').innerHTML = reveal;
+            $('awardsBox').innerHTML = reveal;
         }
                 function computeAwards() {
             const label = resultsLabel;
@@ -1774,10 +1808,14 @@
         function updateButtons() {
             const label = seasonLabel(seasonYear);
             const regularSeasonComplete = Boolean(seasonCalendar && seasonCalendar.games.every(game => game.status === 'completed'));
-            $('playoffsSection').hidden = !regularSeasonComplete && phase !== 'playoffs';
+            const waitingForAwardsContinue = regularSeasonComplete && phase !== 'playoffs' && !playoffs;
+            $('seasonSection').hidden = waitingForAwardsContinue || phase === 'playoffs';
+            $('seasonAwardsScreen').hidden = !waitingForAwardsContinue;
+            $('playoffsSection').hidden = phase !== 'playoffs';
             $('awardsSection').hidden = !regularSeasonComplete && phase !== 'playoffs' && !history.length;
             $('simulateSeason').disabled = phase === 'playoffs' || !seasonCalendar || !seasonCalendar.games.some(game => game.status !== 'completed');
-            $('runPlayoffs').disabled = phase !== 'regular' || !seasonCalendar || seasonCalendar.games.some(game => game.status !== 'completed');
+            $('runPlayoffs').hidden = true;
+            $('runPlayoffs').disabled = true;
             $('runOffseason').disabled = phase !== 'playoffs' || !playoffs || !playoffs.champion;
             $('resetSeason').disabled = phase === 'playoffs';
             $('dataSeason').textContent = label;
@@ -1798,14 +1836,30 @@
 
         $('simulateSeason').onclick = buildSeason;
         $('runPlayoffs').onclick = runPlayoffs;
-        $('simulatePlayoffGame').onclick = () => { if (selectedPlayoffGameId) simulateOnePlayoffGame(selectedPlayoffGameId); };
-        $('simulatePlayoffRound').onclick = simulateCurrentPlayoffRound;
-        $('simulatePlayoffs').onclick = simulatePlayoffsToConferenceFinals;
+        $('enterPlayoffs').onclick = initializePlayoffs;
+        $('viewPlayoffBoxScore').onclick = showPlayoffBoxScore;
+        document.addEventListener('keydown', event => {
+            if (event.key !== 'Enter' || $('seasonAwardsScreen').hidden) return;
+            if (event.target && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(event.target.tagName)) return;
+            event.preventDefault();
+            initializePlayoffs();
+        });
         $('bracket').addEventListener('click', event => {
             const tile = event.target.closest('[data-playoff-game]');
             if (!tile || tile.disabled) return;
-            selectedPlayoffGameId = tile.dataset.playoffGame;
-            renderPlayoffs();
+            const gameId = tile.dataset.playoffGame;
+            const found = findPlayoffGame(gameId);
+            if (found && found.game.completed) {
+                selectedPlayoffGameId = gameId;
+                renderPlayoffs();
+                return;
+            }
+            if (!isActivePlayoffGameId(gameId)) return;
+            const played = simulateOnePlayoffGame(gameId);
+            if (played) {
+                selectedPlayoffGameId = gameId;
+                renderPlayoffs();
+            }
         });
         
         $('runOffseason').onclick = runOffseason;
