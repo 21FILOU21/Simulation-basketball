@@ -223,8 +223,74 @@
             .attribute-groups { grid-template-columns: 1fr }
         }
         @media(max-width:520px) {
+            main { padding: 14px 10px 34px }
+            .panel { padding: 13px; border-radius: 14px; margin: 10px 0 }
+            .top { align-items: flex-start; gap: 10px; margin-bottom: 12px }
+            .top > div:first-child { min-width: 0 }
+            .top p { margin: 8px 0 0; font-size: 13px }
+            h1 { font-size: clamp(27px, 8vw, 36px) }
+            h2 { font-size: 17px }
+            h3 { font-size: 14px }
+            .actions { gap: 7px }
+            .actions .btn { flex: 1 1 auto }
+            .btn { min-height: 44px; padding: 10px 11px; font-size: 13px }
+            .field { min-width: 0; width: 100%; font-size: 12px }
+            .field input, .field select { min-width: 0; width: 100%; min-height: 44px; font-size: 16px }
+            .controls { align-items: stretch; gap: 10px }
+            .controls > .btn { min-height: 44px }
             .editor-grid { grid-template-columns: 1fr }
+            .editor-actions { align-items: stretch }
+            .editor-actions .field { min-width: 100%; flex-basis: 100% }
             .awards { grid-template-columns: 1fr }
+            .stats { gap: 7px }
+            .stat { padding: 9px }
+            .stat b { font-size: 20px; overflow-wrap: anywhere }
+            .slots { gap: 6px }
+            .slot { min-height: 100px; padding: 8px }
+            .slot button { min-height: 36px }
+            .wheelwrap { gap: 14px }
+            .wheel { width: 118px; height: 118px }
+            .wheel span { width: 62px; height: 62px }
+            .picks { max-height: 300px; overscroll-behavior: contain }
+            .pick { grid-template-columns: minmax(0, 1fr) auto }
+            .pick .btn { min-height: 40px }
+            .tablewrap { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain }
+            .tablewrap table { min-width: max-content }
+            th, td { padding: 9px 8px }
+            .bracket { grid-template-columns: repeat(4, minmax(155px, 1fr)); overflow-x: auto; -webkit-overflow-scrolling: touch }
+            .schedule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+            .schedule-game { padding: 8px }
+            .schedule-game .matchup { font-size: 11px }
+            .schedule-toolbar .field { flex: 1 1 100% }
+            #scheduleSummary { display: block; width: 100% }
+            details > summary.btn { display: block; width: 100%; text-align: center }
+            input[type=range] { min-height: 32px }
+        }
+        @media(max-width:360px) {
+            .schedule-grid { grid-template-columns: 1fr }
+            .stats { grid-template-columns: 1fr 1fr }
+            .slot strong { overflow-wrap: anywhere }
+            .wheel { width: 100px; height: 100px }
+            .wheel span { width: 54px; height: 54px; font-size: 11px }
+        }
+
+        /* Touch, clavier et préférence de mouvement */
+        button, a, input, select, summary { touch-action: manipulation }
+        button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+            outline: 3px solid var(--gold); outline-offset: 2px
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important }
+        }
+        @media(max-width:850px) {
+            .mobile-nav-toggle { display: inline-flex !important }
+            .mobile-nav { position: sticky; top: 6px; z-index: 20; margin: 0 0 12px; padding: 10px; background: #0b1527f5; border: 1px solid var(--line); border-radius: 12px; backdrop-filter: blur(12px) }
+            .mobile-nav-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px }
+            .mobile-nav a { display: flex; align-items: center; min-height: 44px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; color: var(--txt); text-decoration: none; font-size: 13px; font-weight: 700 }
+        }
+        @media(min-width:851px) {
+            .mobile-nav { display: none !important }
+            .mobile-nav-toggle { display: none !important }
         }
     </style>
 </head>
@@ -237,12 +303,24 @@
                 <h1>NBA Sim Lab <span style="color:var(--orange)">26</span></h1>
                 <p>Construis ton équipe, simule la saison, les séries, les trophées, le vieillissement et le repêchage — année après année.</p>
             </div>
-            <div class="actions"><button class="btn" id="export">Exporter les stats .txt</button><button class="btn" id="exportSave">Sauvegarder JSON</button><label class="btn"
+            <div class="actions"><button class="btn mobile-nav-toggle" id="mobileNavToggle" type="button" aria-expanded="false" aria-controls="mobileNav" style="display:none">☰ Menu</button><button class="btn" id="export">Exporter les stats .txt</button><button class="btn" id="exportSave">Sauvegarder JSON</button><label class="btn"
                     for="importFile">Importer un fichier JSON</label><input hidden id="importFile" type="file"
                     accept=".json,.txt,application/json"></div>
         </div>
+        <nav id="mobileNav" class="mobile-nav" aria-label="Navigation rapide" hidden>
+            <div class="mobile-nav-links">
+                <a href="#dataSection">Données joueurs</a>
+                <a href="#teamSection">Mon équipe</a>
+                <a href="#playerStatsSection">Stats joueurs</a>
+                <a href="#seasonSection">Saison & calendrier</a>
+                <a href="#playoffsSection">Playoffs</a>
+                <a href="#awardsSection">Trophées</a>
+                <a href="#careerSection">Carrière</a>
+                <a href="#editorSection">Créer un joueur</a>
+            </div>
+        </nav>
 
-        <div class="panel">
+        <div class="panel" id="dataSection">
             <h2>01 — Données joueurs</h2>
             <div class="notice">Le site NBA ne peut pas être aspiré de façon fiable depuis une page HTML locale (CORS). Le bouton ci-dessous charge un jeu de démonstration clairement identifié. Pour des stats réelles, importe un JSON (champs : name, team, pos, pts, reb, ast, ts, three, mpg, et optionnellement age, stl, blk).</div>
             <div class="actions" style="margin-top:13px"><button class="btn primary" id="demo">Charger les joueurs de démo</button><button class="btn" id="reset">Tout réinitialiser</button></div>
@@ -256,7 +334,7 @@
         </div>
 
         <!-- 02 : roue + cinq starters + création d'équipe -->
-        <section class="panel">
+        <section class="panel" id="teamSection">
             <h2>02 — Mon équipe : roue, cinq starters & création</h2>
             <p>Choisis les joueurs avec la roue ou la recherche, complète les cinq postes et crée ton équipe personnalisée. Elle entrera dans le classement à la prochaine saison. La simulation de match et les résultats d’intersaison sont regroupés plus bas dans cette section.</p>
             <div class="slots" id="slots"></div>
@@ -335,7 +413,7 @@
             </div>
         </section>
 
-        <section class="panel">
+        <section class="panel" id="playerStatsSection">
             <h2>03 — Base de joueurs & stats</h2>
             <div class="controls">
                 <label class="field" style="flex:1">Rechercher<input id="search" placeholder="Nom, équipe ou poste…"></label>
@@ -361,7 +439,7 @@
             </div>
         </section>
 
-        <section class="panel">
+        <section class="panel" id="seasonSection">
             <h2>04 — Saison régulière (82 matchs)</h2>
             <p>Simule les 30 franchises NBA et tes équipes personnalisées. Les 8 meilleures de chaque conférence se qualifient pour les séries. Cycle d’une année : saison → séries → trophées → vieillissement, retraites et repêchage.</p>
             <div class="phase" id="phaseLabel">Saison 2025-26 — à simuler</div>
@@ -412,14 +490,14 @@
             <div id="seasonCalendarView"><div class="schedule-empty">Aucun calendrier généré pour le moment.</div></div>
         </section>
 
-        <section class="panel">
+        <section class="panel" id="playoffsSection">
             <h2>05 — Séries éliminatoires</h2>
             <p>Les 8 premiers de chaque conférence, séries au meilleur des 7 matchs : 1 vs 8, 4 vs 5, 3 vs 6, 2 vs 7, puis demi-finales, finales de conférence et finale NBA.</p>
             <div class="champ" id="champBanner"></div>
             <div class="bracket" id="bracket"></div>
         </section>
 
-        <section class="panel">
+        <section class="panel" id="awardsSection">
             <h2>06 — Trophées & palmarès</h2>
             <p>Remis après les séries, d’après les stats de la saison de chaque joueur (matchs joués, bilan de l’équipe, défense, progression…).</p>
             <div id="awardsBox"></div>
@@ -433,7 +511,7 @@
             </div>
         </section>
 
-        <section class="panel">
+        <section class="panel" id="careerSection">
             <h2>07 — Carrière : joueur suivi ou contrôlé</h2>
             <p>Choisis un joueur actif pour consulter son profil et ses statistiques de carrière. Le mode contrôlé propose des décisions offensives résolues par ses attributs; il s’agit d’un match simplifié, pas d’une simulation complète de saison.</p>
             <div class="controls">
@@ -466,7 +544,7 @@
             </div>
         </section>
 
-        <section class="panel">
+        <section class="panel" id="editorSection">
             <h2>08 — Créateur / modificateur / supprimeur de joueur</h2>
             <p>Remplis les champs puis clique sur « Créer ». Pour modifier ou supprimer, sélectionne d’abord un joueur dans la liste.</p>
             <div class="editor-grid">
@@ -1799,6 +1877,30 @@
             const button = event.target.closest('button[data-action]');
             if (button && !button.disabled) playCareerTurn(button.dataset.action);
         };
+
+        const mobileNavToggle = $('mobileNavToggle');
+        const mobileNav = $('mobileNav');
+        mobileNavToggle.onclick = () => {
+            const willOpen = mobileNav.hidden;
+            mobileNav.hidden = !willOpen;
+            mobileNavToggle.setAttribute('aria-expanded', String(willOpen));
+            mobileNavToggle.textContent = willOpen ? '✕ Fermer le menu' : '☰ Menu';
+        };
+        mobileNav.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                mobileNav.hidden = true;
+                mobileNavToggle.setAttribute('aria-expanded', 'false');
+                mobileNavToggle.textContent = '☰ Menu';
+            });
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !mobileNav.hidden) {
+                mobileNav.hidden = true;
+                mobileNavToggle.setAttribute('aria-expanded', 'false');
+                mobileNavToggle.textContent = '☰ Menu';
+                mobileNavToggle.focus();
+            }
+        });
 
         initTeamEditor();
         renderAll();
