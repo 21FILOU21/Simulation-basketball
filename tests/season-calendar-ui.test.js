@@ -20,4 +20,4 @@ assert.match(script, /customTeams\.map\(t => \(\{ code: t\.code, name: t\.name, 
 assert.match(script, /phase !== 'idle'/, "Victory/defeat labels should be hidden during the offseason.");
 assert.match(script, /function simulateThroughRound\(targetRound\)/, "Season progression should be round-based.");
 
-console.log("OK — calendrier interactif : affichage permanent, tuiles cliquables, progression séquentielle, bouton Simuler partie connecté, scores masqués et défaites en rouge.");
+console.log("OK — calendrier interactif : affichage permanent, tuiles cliquables, progression séquentielle, bouton Simuler partie connecté, scores visibles, équipes personnalisées et défaites en rouge.");
