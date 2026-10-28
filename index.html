@@ -807,6 +807,7 @@
             };
         }
         function load(list, status, savedState = null) {
+            seasonCalendar = null;
             if (!Array.isArray(list)) throw new Error('La base de joueurs doit être un tableau.');
             players = normalize(list);
             nextPlayerId = Math.max(1000, ...players.map(p => (Number(p.id) || 0) + 1));
@@ -1257,8 +1258,8 @@
                 return false;
             }
             const allTeamDefs = [
-                ...nbaTeams.map(([code, name, conference]) => ({ code, name, conference, custom: false })),
-                ...customTeams.map(t => ({ code: t.code, name: t.name, conference: t.conference, custom: true, customId: t.id }))
+                ...nbaTeams.map(([code, name, conference]) => { const settings = window.NBAMyNBATeamSettings && window.NBAMyNBATeamSettings[code] || {}; return { code, name: settings.name || name, conference: settings.conference || conference, custom: false }; }),
+                ...customTeams.map(t => { const settings = window.NBAMyNBATeamSettings && window.NBAMyNBATeamSettings[t.code] || {}; return { code: t.code, name: settings.name || t.name, conference: settings.conference || t.conference, custom: true, customId: t.id }; })
             ];
             if (allTeamDefs.length < 2) {
                 $('seasonStatus').textContent = 'Il faut au moins deux équipes pour générer un calendrier.';
