@@ -1483,6 +1483,7 @@
                 series.winner = series.winsA === 4 ? series.a : series.b;
                 series.loser = series.winner === series.a ? series.b : series.a;
             }
+            selectedPlayoffGameId = null;
             ensureNextPlayoffRound();
             if (playoffs.final && playoffs.final.winner) finishPlayoffs();
             renderAll();
