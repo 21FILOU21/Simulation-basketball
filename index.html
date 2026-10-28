@@ -1362,6 +1362,8 @@
             const select = $('scheduleTeamFilter');
             const view = $('seasonCalendarView');
             const summary = $('scheduleSummary');
+            view.hidden = phase === 'playoffs';
+            summary.textContent = phase === 'playoffs' ? 'Calendrier de saison régulière masqué pendant les playoffs.' : summary.textContent;
             if (!seasonCalendar || !seasonCalendar.games.length) {
                 select.innerHTML = '<option value="">Calendrier en préparation…</option>';
                 select.disabled = true;
@@ -1440,12 +1442,13 @@
             playoffs = { confRounds, conferenceChampions: {}, final: null, champion: null, runnerUp: null, currentRound: 0, finalsMvp: null };
             phase = 'playoffs';
             selectedPlayoffGameId = null;
-            $('seasonStatus').textContent = 'Les séries commencent. Termine toutes les séries du 1er tour avant de passer aux demi-finales.';
+            $('seasonStatus').textContent = 'Les séries commencent. Sélectionne un match et clique sur « Simuler partie », ou simule le round complet.';
+            $('runPlayoffs').textContent = 'Séries en cours';
             renderAll();
         }
         function activePlayoffRound() {
             if (!playoffs) return null;
-            if (playoffs.final) return playoffs.final.winner ? null : playoffs.final;
+            if (playoffs.final) return playoffs.final.winner ? null : { index: 3, name: 'Finale NBA', series: [playoffs.final] };
             const west = playoffs.confRounds.West[playoffs.currentRound];
             const east = playoffs.confRounds.East[playoffs.currentRound];
             if (!west || !east) return null;
@@ -1745,6 +1748,7 @@
             lastOffseason = { season: label, next, retired: retiredNow, risers, fallers, rookies: draftRows.length };
             // 4) Nouvelle saison
             seasonYear++; phase = 'idle'; seasonLines = new Map(); seasonResults = []; seasonCalendar = null; playoffs = null; selectedPlayoffGameId = null;
+            $('runPlayoffs').textContent = '2. Commencer les séries';
             $('seasonStatus').textContent = `Intersaison terminée : ${retiredNow.length} retraite(s), ${draftRows.length} recrues. La saison ${next} est prête.`;
             initializeSeasonCalendar();
             renderAll();
@@ -1772,7 +1776,7 @@
             $('awardsSection').hidden = !regularSeasonComplete && phase === 'idle';
             $('simulateSeason').disabled = phase === 'playoffs' || !seasonCalendar || !seasonCalendar.games.some(game => game.status !== 'completed');
             $('runPlayoffs').disabled = phase !== 'regular' || !seasonCalendar || seasonCalendar.games.some(game => game.status !== 'completed');
-            $('runOffseason').disabled = phase !== 'playoffs';
+            $('runOffseason').disabled = phase !== 'playoffs' || !playoffs || !playoffs.champion;
             $('resetSeason').disabled = phase === 'playoffs';
             $('dataSeason').textContent = label;
             const allGamesPlayed = Boolean(seasonCalendar && seasonCalendar.games.every(game => game.status === 'completed'));
@@ -1781,8 +1785,12 @@
         function renderAll() { render(); updateSeasonBoxes(); renderStandings(); renderSeasonCalendar(); renderPlayoffs(); renderAwards(); renderHistory(); renderOffseason(); updateButtons(); }
         function runAll() {
             if (phase !== 'playoffs') buildSeason();
-            if (phase === 'regular') runPlayoffs();
-            runOffseason();
+            if (phase === 'regular') initializePlayoffs();
+            if (phase === 'playoffs' && playoffs && !playoffs.champion) {
+                simulatePlayoffsToConferenceFinals();
+                if (playoffs.final && !playoffs.champion) completePlayoffSeries(playoffs.final);
+            }
+            if (phase === 'playoffs' && playoffs && playoffs.champion) runOffseason();
         }
         function runYears(n) { for (let i = 0; i < n; i++) runAll(); }
 
