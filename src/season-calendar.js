@@ -99,7 +99,7 @@
         // Prefer the team with fewer home games; the cycle order breaks ties deterministically.
         if (leftHome > rightHome) { home = right; away = left; }
         else if (rightHome > leftHome) { home = left; away = right; }
-        else if ((roundIndex + matchIndex) % 2 === 1) { home = away; away = left; }
+        else if ((roundIndex + matchIndex) % 2 === 1) { const previousHome = home; home = away; away = previousHome; }
         homeCounts.set(home.code, homeCounts.get(home.code) + 1);
         counts.set(left.code, counts.get(left.code) + 1);
         counts.set(right.code, counts.get(right.code) + 1);
