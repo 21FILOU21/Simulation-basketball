@@ -207,13 +207,20 @@
         /* Séries */
         .champ { font-size: 20px; font-weight: 900; color: var(--gold); margin: 8px 0 }
         .champ span { color: var(--muted); font-size: 14px; font-weight: 600 }
-        .bracket { display:grid; grid-template-columns:minmax(240px,1fr) minmax(180px,.75fr) minmax(240px,1fr); gap:14px; overflow-x:auto; align-items:start }
-        .bracket-conference { display:grid; grid-template-columns:repeat(3,minmax(190px,1fr)); gap:10px; min-width:600px }
-        .bracket-conference > h3 { grid-column:1 / -1; margin:0; color:var(--gold) }
-        .bracket-conference.east { direction:rtl }
-        .bracket-conference.east > * { direction:ltr }
-        .bracket-center { min-width:180px; display:flex; flex-direction:column; gap:12px; align-items:stretch }
-        .playoff-round { min-width:0 }
+        .bracket { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; width:100%; max-width:100%; min-width:0; overflow:visible; align-items:start }
+        .bracket-conference { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; min-width:0; width:100%; max-width:100% }
+        .bracket-conference > h3 { margin:0; color:var(--gold) }
+        .bracket-conference.west { grid-column:1; grid-row:1 }
+        .bracket-conference.east { grid-column:2; grid-row:1; direction:ltr }
+        .bracket-center { grid-column:1 / -1; grid-row:2; min-width:0; width:100%; max-width:100%; display:flex; flex-direction:column; gap:12px; align-items:stretch }
+        .playoff-round { min-width:0; width:100%; max-width:100% }
+        .playoff-round > h4 { margin:0 0 8px; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.08em }
+        .series-scoreline { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:8px; margin:8px 0; padding:10px; border:1px solid #314765; border-radius:10px; background:#101e33; min-width:0 }
+        .series-scoreline span { min-width:0; overflow-wrap:anywhere; font-weight:750 }
+        .series-scoreline span:last-child { text-align:right }
+        .series-scoreline strong { font-size:clamp(17px,2vw,25px); color:var(--gold); font-variant-numeric:tabular-nums; white-space:nowrap }
+        .playoff-series { min-width:0; max-width:100%; overflow:hidden }
+        .playoff-series h4 { overflow-wrap:anywhere }
         .playoff-series { border:1px solid #314765; background:#0c1628; border-radius:12px; padding:9px; margin-bottom:10px }
         .playoff-series h4 { margin:0 0 7px; font-size:12px }
         .playoff-game { width:100%; display:flex; justify-content:space-between; align-items:center; gap:8px; text-align:left; padding:8px; margin:4px 0; border:1px solid #273b58; border-radius:8px; background:#101e33; color:var(--txt); cursor:pointer; font:inherit }
@@ -288,7 +295,11 @@
             .tablewrap { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain }
             .tablewrap table { min-width: max-content }
             th, td { padding: 9px 8px }
-            .bracket { grid-template-columns: repeat(4, minmax(155px, 1fr)); overflow-x: auto; -webkit-overflow-scrolling: touch }
+            .bracket { grid-template-columns:minmax(0,1fr); gap:12px; overflow:visible; width:100% }
+            .bracket-conference.west,.bracket-conference.east,.bracket-center { grid-column:1; grid-row:auto }
+            .bracket-conference { grid-template-columns:minmax(0,1fr); min-width:0; width:100% }
+            .series-scoreline { grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:6px; padding:8px }
+            .series-scoreline span { font-size:12px }
             .schedule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) }
             .schedule-game { padding: 8px }
             .schedule-game .matchup { font-size: 11px }
@@ -1512,15 +1523,17 @@
             const roundIndex = playoffs.currentRound;
             const west = westRounds[roundIndex], east = eastRounds[roundIndex];
             if (!west || !east || !west.series.every(s => s.winner) || !east.series.every(s => s.winner)) return;
-            if (roundIndex < 2) {
+            if (roundIndex === 0 || roundIndex === 1) {
                 const nextName = roundIndex === 0 ? 'Demi-finales de conférence' : 'Finales de conférence';
-                const makePairs = round => [[round.series[0].winner, round.series[1].winner], [round.series[2].winner, round.series[3].winner]];
+                const makePairs = roundIndex === 0
+                    ? round => [[round.series[0].winner, round.series[1].winner], [round.series[2].winner, round.series[3].winner]]
+                    : round => [[round.series[0].winner, round.series[1].winner]];
                 westRounds.push(createPlayoffRound(roundIndex + 1, nextName, makePairs(west), 'West'));
                 eastRounds.push(createPlayoffRound(roundIndex + 1, nextName, makePairs(east), 'East'));
                 playoffs.currentRound++;
                 selectedPlayoffGameId = null;
                 $('seasonStatus').textContent = `Toutes les séries du ${west.name.toLowerCase()} sont terminées. Place aux ${nextName.toLowerCase()}.`;
-            } else if (!playoffs.final) {
+            } else if (roundIndex === 2 && !playoffs.final) {
                 playoffs.conferenceChampions = { West: west.series[0].winner, East: east.series[0].winner };
                 const westChampion = playoffs.conferenceChampions.West, eastChampion = playoffs.conferenceChampions.East;
                 playoffs.final = { ...createPlayoffSeries(westChampion, eastChampion, null, 3, 0), name: 'Finale NBA' };
