@@ -311,8 +311,21 @@ function hidePlayoffsCategory() {
     if(/playoffs/i.test(card.textContent||"")){card.hidden=true;card.style.display="none";}
   });
 }
+
+function trimOversizedRosters() {
+  const codes=new Set((typeof nbaTeams!=="undefined"?nbaTeams:[]).map(t=>String(Array.isArray(t)?t[0]:t.code)));
+  (typeof customTeams!=="undefined"?customTeams:[]).forEach(t=>codes.add(String(t.code)));
+  codes.forEach(code=>{
+    const list=(players||[]).filter(p=>String(p.team)===code).sort((a,b)=>overall(b)-overall(a)||(Number(b.mpg)||0)-(Number(a.mpg)||0));
+    list.slice(15).forEach(p=>{
+      p.team="FA";
+      (typeof customTeams!=="undefined"?customTeams:[]).forEach(t=>{t.playerIds=(t.playerIds||[]).filter(id=>String(id)!==String(p.id));});
+    });
+  });
+}
+
 function start() {
-  installGameTracking();recoverCalendarAfterLoad();installScheduleActions();installAutoMinutes();installActualRegularBox();recordDevelopment();
+  trimOversizedRosters();installGameTracking();recoverCalendarAfterLoad();installScheduleActions();installAutoMinutes();installActualRegularBox();recordDevelopment();
   document.addEventListener("change",enforceMinuteCap,true);
   document.addEventListener("click",event=>{
     if(event.target.closest('[data-leader-tab="players"]'))setTimeout(renderLeaderTable,0);
