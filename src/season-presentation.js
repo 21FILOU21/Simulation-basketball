@@ -56,7 +56,7 @@ function openSeries(id){
  seriesOverlay.querySelector('[data-close]').onclick=()=>{close(seriesOverlay);seriesOverlay=null;};
  seriesOverlay.querySelectorAll('[data-box-game]').forEach(b=>b.onclick=()=>showBox(b.dataset.boxGame));
  seriesOverlay.querySelector('[data-view-box]').onclick=()=>{if(games.length)showBox(games[games.length-1].id);};
- seriesOverlay.querySelector('[data-sim-game]').onclick=()=>{if(!active)return;simulateOnePlayoffGame(s.id+'-G'+(s.games.length+1));openSeries(s.id);};
+ seriesOverlay.querySelector('[data-sim-game]').onclick=()=>{if(!active)return;simulateOnePlayoffGame(s.id+'-G'+(s.games.length+1));if(playoffs?.champion){if(seriesOverlay){close(seriesOverlay);seriesOverlay=null;}return;}const nextRound=activePlayoffRound();const nextSeries=nextRound?.series.find(item=>!item.winner);if(seriesOverlay){close(seriesOverlay);seriesOverlay=null;}if(nextSeries)openSeries(nextSeries.id);else renderAll();};
  seriesOverlay.querySelector('[data-sim-round]').onclick=()=>{close(seriesOverlay);seriesOverlay=null;simulateCurrentPlayoffRound();if(!playoffs?.champion)openSeries(s.id);};
  seriesOverlay.querySelector('[data-sim-playoffs]').onclick=()=>{close(seriesOverlay);seriesOverlay=null;let guard=0;while(playoffs&&!playoffs.champion&&guard++<500){const r=activePlayoffRound();if(!r)break;const nextSeries=r.series.find(x=>!x.winner);if(nextSeries){completePlayoffSeries(nextSeries);continue;}const before=playoffs.currentRound;ensureNextPlayoffRound();if(playoffs.final&&!playoffs.final.winner)continue;if(before===playoffs.currentRound&&!playoffs.final)break;}renderAll();if(!playoffs?.champion)openSeries(s.id);};
  enterBinding(seriesOverlay,()=>{close(seriesOverlay);seriesOverlay=null;});
