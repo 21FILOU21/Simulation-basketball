@@ -10,7 +10,7 @@ new Function(script); // Syntax check of the inline application code.
 assert.match(script, /initializeSeasonCalendar\(\);\s*renderAll\(\);/, "Calendar should initialize on page load.");
 assert.match(script, /data-game-id=/, "Schedule tiles should be actionable buttons.");
 assert.match(script, /if \(game\) simulateThroughRound\(game\.round\)/, "Clicking a later game should simulate earlier rounds too.");
-assert.match(script, /\$\('simulate'\)\.onclick = simulateNextSeasonGame/, "The simple match button should advance the season calendar.");
+assert.match(script, /\$\('simulate'\)\.onclick = \(\) => \{[\s\S]*?else simulateNextSeasonGame\(\); \};/, "The simple match button should advance the season calendar outside playoffs.");
 assert.match(script, /won \? 'Victoire' : 'Défaite'/, "Completed games should display a readable result.");
 assert.match(html, /\.schedule-game\.loss \.game-status/, "Defeats should be styled in red.");
 assert.match(script, /<span class="score">\$\{ownScore\} – \$\{opponentScore\}<\/span>/, "Completed regular-season tiles should display their score.");
