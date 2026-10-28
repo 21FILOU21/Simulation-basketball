@@ -25,3 +25,19 @@
 - Essai réel sur Safari iOS et Chrome Android, en portrait et paysage.
 - Vérification tactile de la roue, des formulaires longs, des tableaux et des 82 tuiles du calendrier.
 - Test navigateur automatisé et contrôle visuel sur plusieurs largeurs d'écran.
+
+
+## Calendrier, trophées et playoffs interactifs
+
+- Les résultats du calendrier affichent maintenant le score, avec une victoire en vert et une défaite en rouge.
+- La section des séries reste masquée jusqu'à la fin des 82 matchs de saison régulière. Le calendrier des 82 matchs est masqué pendant les playoffs.
+- À la fin de la saison régulière, une présentation de trophées montre les gagnants estimés (MVP, ROY, DPOY, MIP, 6e homme et leaders statistiques).
+- Les playoffs sont organisés en bracket avec l'Ouest à gauche, l'Est à droite et la Finale NBA au centre.
+- Une tuile de playoff sélectionne un match; le bouton « Simuler partie » joue seulement ce match. « Simuler round au complet » complète toutes les séries du tour actif pour les deux conférences. Le bouton « Simuler Playoffs » avance jusqu'à la Finale NBA en terminant les finales de conférence.
+- Le tour suivant ne s'ouvre qu'une fois toutes les séries du tour courant terminées. La Finale NBA se joue ensuite match par match ou avec « Simuler round au complet ».
+- Après la Finale NBA, un écran de champion et de MVP des Finales apparaît.
+
+### Tests ajoutés
+
+- Le fichier tests/playoffs-ui.test.js vérifie la syntaxe et les contrats UI du calendrier, des trophées, des brackets et de la progression séquentielle.
+- Les vérifications sont statiques; un essai manuel dans un navigateur reste nécessaire pour confirmer l'expérience complète.

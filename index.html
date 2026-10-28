@@ -185,7 +185,10 @@
         .schedule-game-button { cursor:pointer; min-height:84px; transition:border-color .15s,background .15s }
         .schedule-game-button:hover:not(:disabled), .schedule-game-button:focus-visible { border-color:var(--blue); background:#142642 }
         .schedule-game-button:disabled { cursor:default; opacity:1 }
-        .schedule-game.loss .game-status, .schedule-game .game-status.loss { color:#ff6868; font-weight:900 }
+        .schedule-game.loss .game-status, .schedule-game .game-status.loss { color:#ff4545; font-weight:900 }
+        .schedule-game.win .game-status { color:#39d98a; font-weight:900 }
+        .schedule-game.loss { border-color:#9f3038 }
+        .schedule-game.win { border-color:#267b55 }
         .schedule-game .game-meta, .schedule-game .matchup, .schedule-game .game-status { display:flex; justify-content:space-between; gap:6px }
         .schedule-game .matchup { display:block; margin:8px 0 }
         .schedule-game.completed { border-color:#356b5a }
@@ -204,7 +207,25 @@
         /* Séries */
         .champ { font-size: 20px; font-weight: 900; color: var(--gold); margin: 8px 0 }
         .champ span { color: var(--muted); font-size: 14px; font-weight: 600 }
-        .bracket { display: grid; grid-template-columns: repeat(4, minmax(170px, 1fr)); gap: 12px; overflow: auto }
+        .bracket { display:grid; grid-template-columns:minmax(240px,1fr) minmax(180px,.75fr) minmax(240px,1fr); gap:14px; overflow-x:auto; align-items:start }
+        .bracket-conference { display:grid; grid-template-columns:repeat(3,minmax(190px,1fr)); gap:10px; min-width:600px }
+        .bracket-conference > h3 { grid-column:1 / -1; margin:0; color:var(--gold) }
+        .bracket-conference.east { direction:rtl }
+        .bracket-conference.east > * { direction:ltr }
+        .bracket-center { min-width:180px; display:flex; flex-direction:column; gap:12px; align-items:stretch }
+        .playoff-round { min-width:0 }
+        .playoff-series { border:1px solid #314765; background:#0c1628; border-radius:12px; padding:9px; margin-bottom:10px }
+        .playoff-series h4 { margin:0 0 7px; font-size:12px }
+        .playoff-game { width:100%; display:flex; justify-content:space-between; align-items:center; gap:8px; text-align:left; padding:8px; margin:4px 0; border:1px solid #273b58; border-radius:8px; background:#101e33; color:var(--txt); cursor:pointer; font:inherit }
+        .playoff-game.selected { border-color:var(--blue); box-shadow:0 0 0 1px var(--blue) }
+        .playoff-game:disabled { cursor:default; opacity:.7 }
+        .playoff-game .game-score { font-weight:900; font-variant-numeric:tabular-nums }
+        .playoff-game.loss .game-score { color:#ff4545 }
+        .playoff-game.win .game-score { color:#39d98a }
+        .playoff-controls { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 }
+        .award-reveal { border:1px solid #8d7536; background:linear-gradient(135deg,#18233a,#0b1527); border-radius:16px; padding:18px; margin:12px 0 }
+        .award-reveal h3 { color:var(--gold); margin-top:0 }
+        .finals-mvp { border:2px solid var(--gold); padding:16px; border-radius:14px; margin:10px 0; background:#1c2435 }
         .round h3 { margin-top: 0 }
         .series { background: #0c1628; border: 1px solid #263958; border-radius: 10px; padding: 8px 10px; margin-bottom: 8px }
         .series small { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .08em }
@@ -451,7 +472,7 @@
             <div class="phase" id="phaseLabel">Saison 2025-26 — à simuler</div>
             <div class="actions">
                 <button class="btn primary" id="simulateSeason">1. Simuler la saison régulière</button>
-                <button class="btn orange" id="runPlayoffs">2. Simuler les séries</button>
+                <button class="btn orange" id="runPlayoffs">2. Commencer les séries</button>
                 <button class="btn gold" id="runOffseason">3. Intersaison (évolution + repêchage)</button>
             </div>
             <div class="actions" style="margin-top:8px">
@@ -500,7 +521,14 @@
             <h2>05 — Séries éliminatoires</h2>
             <p>Les 8 premiers de chaque conférence, séries au meilleur des 7 matchs : 1 vs 8, 4 vs 5, 3 vs 6, 2 vs 7, puis demi-finales, finales de conférence et finale NBA.</p>
             <div class="champ" id="champBanner"></div>
+            <div id="playoffControls" class="playoff-controls" hidden>
+                <button class="btn primary" id="simulatePlayoffGame" disabled>Simuler partie sélectionnée</button>
+                <button class="btn orange" id="simulatePlayoffRound" disabled>Simuler round au complet</button>
+                <button class="btn gold" id="simulatePlayoffs" disabled>Simuler Playoffs (jusqu’aux finales de conférence)</button>
+                <span id="playoffSelectionHint" class="muted">Sélectionne une tuile de match.</span>
+            </div>
             <div class="bracket" id="bracket"></div>
+            <div id="finalsMvpScreen" hidden></div>
         </section>
 
         <section class="panel" id="awardsSection">
@@ -596,7 +624,7 @@
         let players = [], starters = [null, null, null, null, null], selectedTeam = null, spinTurns = 0;
         let win = 0, lose = 0;
         let seasonYear = 2025, phase = 'idle'; // idle | regular | playoffs
-        let seasonResults = [], resultsLabel = '', playoffs = null, seasonLines = new Map(), seasonStatHistory = [];
+        let seasonResults = [], resultsLabel = '', playoffs = null, seasonLines = new Map(), seasonStatHistory = [], selectedPlayoffGameId = null;
         let seasonCalendar = null;
         let history = [], retired = [], lastDraft = null, lastAwards = null, lastOffseason = null;
         let customTeams = [], nextCustomTeamId = 1, nextPlayerId = 1000;
@@ -1252,6 +1280,7 @@
                 seasonResults.forEach(team => { team.winPct = team.wins / 82; });
                 assignSeeds();
                 genSeasonLines();
+                renderSeasonAwardsPreview();
                 phase = 'regular';
                 $('seasonStatus').textContent = `Saison ${resultsLabel} terminée : ${seasonCalendar.games.length} matchs joués. Les 8 premiers de chaque conférence vont en séries.`;
             } else if (seasonCalendar.games.some(game => game.status === 'completed')) {
@@ -1334,6 +1363,8 @@
             const select = $('scheduleTeamFilter');
             const view = $('seasonCalendarView');
             const summary = $('scheduleSummary');
+            view.hidden = phase === 'playoffs';
+            summary.textContent = phase === 'playoffs' ? 'Calendrier de saison régulière masqué pendant les playoffs.' : summary.textContent;
             if (!seasonCalendar || !seasonCalendar.games.length) {
                 select.innerHTML = '<option value="">Calendrier en préparation…</option>';
                 select.disabled = true;
@@ -1366,11 +1397,12 @@
                     const won = done && ownScore > opponentScore;
                     const showResult = done && phase !== 'idle';
                     const result = showResult ? (won ? 'Victoire' : 'Défaite') : (done ? 'Terminée' : 'À jouer');
-                    const stateClass = showResult && !won ? ' loss' : '';
+                    const score = done && phase !== 'idle' ? `<span class="score">${ownScore} – ${opponentScore}</span>` : '';
+                    const stateClass = showResult ? (won ? ' win' : ' loss') : '';
                     return `<button type="button" class="schedule-game schedule-game-button ${done ? 'completed' : ''}${stateClass}" data-game-id="${esc(game.id)}" data-game-round="${game.round}" aria-label="Match ${game.gameNumber} contre ${esc(game.opponent.name)} — ${done ? (showResult ? result : 'terminé') : 'à jouer'}" ${done || phase === 'playoffs' ? 'disabled' : ''}>
                         <span class="game-meta"><span>Match ${game.gameNumber}</span><span>${game.isHome ? 'DOMICILE' : 'EXTÉRIEUR'}</span></span>
                         <span class="matchup"><strong>${game.isHome ? 'vs' : '@'} ${esc(game.opponent.name)}</strong></span>
-                        <span class="game-status${stateClass}">${result}</span>
+                        <span class="game-status${stateClass}">${result}${score}</span>
                     </button>`;
                 }).join('');
                 return `<h4 class="schedule-month">${esc(stage)} <span class="muted">· ${stageGames.length} matchs</span></h4><div class="schedule-grid">${cards}</div>`;
@@ -1383,53 +1415,211 @@
         }
 
         /* ---------- Séries ---------- */
-        function seriesSim(a, b) { // a = meilleure tête de série (avantage du terrain)
-            let wa = 0, wb = 0, g = 0; const home = [1, 1, 0, 0, 1, 0, 1];
-            while (wa < 4 && wb < 4) {
-                const adv = (home[g] ? 1 : -1) * 0.13;
-                const p = 1 / (1 + Math.exp(-((a.strength - b.strength) * 6 + adv)));
-                rnd() < p ? wa++ : wb++; g++;
-            }
-            return { a, b, wa, wb, winner: wa > wb ? a : b, loser: wa > wb ? b : a };
+        function createPlayoffSeries(a, b, conf, roundIndex, seriesIndex) {
+            return { id: `R${roundIndex}-${conf}-${seriesIndex}-${a.code}-${b.code}`, a, b, conf, roundIndex, seriesIndex,
+                winsA: 0, winsB: 0, winner: null, loser: null, games: [] };
         }
-        function runPlayoffs() {
+        function makePlayoffGame(series, number) {
+            const homeOrder = [true, true, false, false, true, false, true];
+            const aHome = homeOrder[number - 1];
+            return { id: `${series.id}-G${number}`, number, seriesId: series.id,
+                home: aHome ? series.a : series.b, away: aHome ? series.b : series.a,
+                homeScore: null, awayScore: null, completed: false, winnerCode: null };
+        }
+        function createPlayoffRound(roundIndex, name, pairs, conf) {
+            return { index: roundIndex, name, conf, series: pairs.map((pair, i) => createPlayoffSeries(pair[0], pair[1], conf, roundIndex, i)) };
+        }
+        function initializePlayoffs() {
             if (phase !== 'regular' || !seasonResults.length || !seasonCalendar || seasonCalendar.games.some(game => game.status !== 'completed')) return;
-            const rounds = [{ name: '1er tour', series: [] }, { name: 'Demi-finales de conférence', series: [] }, { name: 'Finales de conférence', series: [] }, { name: 'Finale NBA', series: [] }];
-            const champs = {};
-            const hi = (x, y) => x.seed < y.seed ? [x, y] : [y, x];
-            ['East', 'West'].forEach(conf => {
+            const confRounds = {};
+            for (const conf of ['West', 'East']) {
                 const field = seasonResults.filter(t => t.conference === conf && t.seed).sort((a, b) => a.seed - b.seed);
-                const play = (x, y, r) => { const [h, l] = hi(x, y); const s = seriesSim(h, l); s.conf = conf; rounds[r].series.push(s); return s.winner; };
-                const w1 = [[0, 7], [3, 4], [2, 5], [1, 6]].map(([i, j]) => play(field[i], field[j], 0));
-                const w2 = [[w1[0], w1[1]], [w1[2], w1[3]]].map(([x, y]) => play(x, y, 1));
-                champs[conf] = play(w2[0], w2[1], 2);
-            });
-            const e = champs.East, w = champs.West;
-            const [h, l] = (e.wins >= w.wins) ? [e, w] : [w, e];
-            const f = seriesSim(h, l); rounds[3].series.push(f);
-            playoffs = { rounds, champion: f.winner, runnerUp: f.loser, final: f };
+                if (field.length < 8) {
+                    $('seasonStatus').textContent = `Il faut 8 équipes classées dans chaque conférence pour lancer les séries. Conférence ${conf === 'West' ? 'Ouest' : 'Est'} : ${field.length}.`;
+                    return;
+                }
+                confRounds[conf] = [createPlayoffRound(0, '1er tour', [[field[0], field[7]], [field[3], field[4]], [field[2], field[5]], [field[1], field[6]]], conf)];
+            }
+            playoffs = { confRounds, conferenceChampions: {}, final: null, champion: null, runnerUp: null, currentRound: 0, finalsMvp: null };
             phase = 'playoffs';
-            computeAwards();
-            $('seasonStatus').textContent = `Séries ${resultsLabel} terminées. Champion : ${f.winner.name}.`;
+            selectedPlayoffGameId = null;
+            $('seasonStatus').textContent = 'Les séries commencent. Sélectionne un match et clique sur « Simuler partie », ou simule le round complet.';
+            $('runPlayoffs').textContent = 'Séries en cours';
             renderAll();
         }
-        function seriesCard(s) {
-            const row = (t, w, won) => `<div class="srow ${won ? 'won' : ''}"><span>${t.seed ? '(' + t.seed + ') ' : ''}${esc(t.code)}</span><b>${w}</b></div>`;
-            return `<div class="series"><small>${s.conf ? (s.conf === 'East' ? 'Est' : 'Ouest') : 'Finale NBA'}</small>${row(s.a, s.wa, s.winner === s.a)}${row(s.b, s.wb, s.winner === s.b)}</div>`;
+        function activePlayoffRound() {
+            if (!playoffs) return null;
+            if (playoffs.final) return playoffs.final.winner ? null : { index: 3, name: 'Finale NBA', series: [playoffs.final] };
+            const west = playoffs.confRounds.West[playoffs.currentRound];
+            const east = playoffs.confRounds.East[playoffs.currentRound];
+            if (!west || !east) return null;
+            return { index: playoffs.currentRound, name: west.name, confRounds: [west, east], series: [...west.series, ...east.series] };
+        }
+        function simulateOnePlayoffGame(gameId) {
+            if (phase !== 'playoffs' || !playoffs) return false;
+            const round = activePlayoffRound();
+            if (!round) return false;
+            const series = round.series.find(s => !s.winner && (s.games.some(g => g.id === gameId) || `${s.id}-G${s.games.length + 1}` === gameId));
+            if (!series) return false;
+            const game = series.games.find(g => g.id === gameId) || makePlayoffGame(series, series.games.length + 1);
+            if (game.completed || game.number > 7) return false;
+            if (!series.games.includes(game)) series.games.push(game);
+            const homeStrength = series.a.code === game.home.code ? series.a.strength : series.b.strength;
+            const awayStrength = series.a.code === game.away.code ? series.a.strength : series.b.strength;
+            const homeProbability = 1 / (1 + Math.exp(-((homeStrength - awayStrength) * 6 + .13)));
+            const homeWon = rnd() < homeProbability;
+            const pace = 94 + rnd() * 10;
+            const homeScore = Math.round(Math.max(78, 106 + (homeStrength - .5) * 35 + (rnd() * 18 - 9) + (homeWon ? 3 : -3)));
+            let awayScore = Math.round(Math.max(78, 106 + (awayStrength - .5) * 35 + (rnd() * 18 - 9) + (homeWon ? -3 : 3)));
+            game.homeScore = homeScore; game.awayScore = awayScore;
+            if (game.homeScore === game.awayScore) {
+                if (homeWon) game.homeScore++; else awayScore++;
+                game.awayScore = awayScore;
+            }
+            game.completed = true;
+            game.winnerCode = game.homeScore > game.awayScore ? game.home.code : game.away.code;
+            if (game.winnerCode === series.a.code) series.winsA++; else series.winsB++;
+            if (series.winsA === 4 || series.winsB === 4) {
+                series.winner = series.winsA === 4 ? series.a : series.b;
+                series.loser = series.winner === series.a ? series.b : series.a;
+            }
+            selectedPlayoffGameId = null;
+            ensureNextPlayoffRound();
+            if (playoffs.final && playoffs.final.winner) finishPlayoffs();
+            renderAll();
+            return true;
+        }
+        function completePlayoffSeries(series) {
+            while (!series.winner && series.games.length < 7) {
+                simulateOnePlayoffGame(`${series.id}-G${series.games.length + 1}`);
+            }
+        }
+        function ensureNextPlayoffRound() {
+            if (!playoffs || playoffs.final) return;
+            const westRounds = playoffs.confRounds.West, eastRounds = playoffs.confRounds.East;
+            const roundIndex = playoffs.currentRound;
+            const west = westRounds[roundIndex], east = eastRounds[roundIndex];
+            if (!west || !east || !west.series.every(s => s.winner) || !east.series.every(s => s.winner)) return;
+            if (roundIndex < 2) {
+                const nextName = roundIndex === 0 ? 'Demi-finales de conférence' : 'Finales de conférence';
+                const makePairs = round => [[round.series[0].winner, round.series[1].winner], [round.series[2].winner, round.series[3].winner]];
+                westRounds.push(createPlayoffRound(roundIndex + 1, nextName, makePairs(west), 'West'));
+                eastRounds.push(createPlayoffRound(roundIndex + 1, nextName, makePairs(east), 'East'));
+                playoffs.currentRound++;
+                selectedPlayoffGameId = null;
+                $('seasonStatus').textContent = `Toutes les séries du ${west.name.toLowerCase()} sont terminées. Place aux ${nextName.toLowerCase()}.`;
+            } else if (!playoffs.final) {
+                playoffs.conferenceChampions = { West: west.series[0].winner, East: east.series[0].winner };
+                const westChampion = playoffs.conferenceChampions.West, eastChampion = playoffs.conferenceChampions.East;
+                playoffs.final = { ...createPlayoffSeries(westChampion, eastChampion, null, 3, 0), name: 'Finale NBA' };
+                selectedPlayoffGameId = null;
+                $('seasonStatus').textContent = 'Les deux champions de conférence sont qualifiés pour la Finale NBA.';
+            }
+        }
+        function simulateCurrentPlayoffRound() {
+            const round = activePlayoffRound();
+            if (!round) return;
+            round.series.filter(series => !series.winner).forEach(completePlayoffSeries);
+            renderAll();
+        }
+        function simulatePlayoffsToConferenceFinals() {
+            if (!playoffs || phase !== 'playoffs') return;
+            while (playoffs.currentRound < 3 && !playoffs.final) {
+                const round = activePlayoffRound();
+                if (!round) break;
+                round.series.filter(series => !series.winner).forEach(completePlayoffSeries);
+            }
+            renderAll();
+        }
+        function finishPlayoffs() {
+            if (!playoffs || !playoffs.final || !playoffs.final.winner || playoffs.champion) return;
+            playoffs.champion = playoffs.final.winner;
+            playoffs.runnerUp = playoffs.final.loser;
+            phase = 'playoffs';
+            computeAwards();
+            const finalsAward = lastAwards && lastAwards.awards.find(a => a.key === 'MVP Finales');
+            playoffs.finalsMvp = finalsAward || null;
+            $('seasonStatus').textContent = `Saison ${resultsLabel} terminée : champion NBA, ${playoffs.champion.name}.`;
+        }
+        function runPlayoffs() { initializePlayoffs(); }
+        function playoffSeriesCard(series) {
+            const rows = series.games.map(game => {
+                const homeWin = game.completed && game.winnerCode === game.home.code;
+                const awayWin = game.completed && game.winnerCode === game.away.code;
+                const selected = selectedPlayoffGameId === game.id;
+                return `<button type="button" class="playoff-game ${selected ? 'selected' : ''} ${homeWin ? 'win' : awayWin ? 'loss' : ''}" data-playoff-game="${game.id}" ${game.completed || series.winner || !isActivePlayoffSeries(series) ? 'disabled' : ''} aria-pressed="${selected}">
+                    <span>G${game.number} · ${esc(game.home.code)} vs ${esc(game.away.code)}</span><span class="game-score">${game.completed ? `${game.homeScore}–${game.awayScore}` : (selected ? 'Sélectionné' : 'Sélectionner')}</span>
+                </button>`;
+            }).join('');
+            const nextGame = !series.winner ? `<button type="button" class="playoff-game ${selectedPlayoffGameId === `${series.id}-G${series.games.length + 1}` ? 'selected' : ''}" data-playoff-game="${series.id}-G${series.games.length + 1}" ${isActivePlayoffSeries(series) ? '' : 'disabled'} aria-pressed="${selectedPlayoffGameId === `${series.id}-G${series.games.length + 1}`}>+ Match ${series.games.length + 1} <span class="game-score">${series.winsA}–${series.winsB}</span></button>` : `<div class="srow won"><b>Gagnant : ${esc(series.winner.name)}</b></div>`;
+            return `<div class="playoff-series"><h4>${esc(series.a.name)} (${series.winsA}) — ${esc(series.b.name)} (${series.winsB})</h4>${rows}${nextGame}</div>`;
+        }
+        function isActivePlayoffSeries(series) {
+            const round = activePlayoffRound();
+            return Boolean(round && round.series.some(s => s.id === series.id) && !series.winner);
+        }
+        function renderConferenceBracket(conf) {
+            const rounds = playoffs.confRounds[conf] || [];
+            return `<div class="bracket-conference ${conf === 'East' ? 'east' : 'west'}"><h3>${conf === 'West' ? 'OUEST' : 'EST'}</h3>${[0,1,2].map(index => `<div class="playoff-round"><h4>${['1er tour','Demi-finales','Finales de conférence'][index]}</h4>${rounds[index] ? rounds[index].series.map(playoffSeriesCard).join('') : '<p class="muted">En attente des vainqueurs du tour précédent.</p>'}</div>`).join('')}</div>`;
         }
         function renderPlayoffs() {
+            const controls = $('playoffControls');
+            controls.hidden = phase !== 'playoffs' || !playoffs;
+            $('finalsMvpScreen').hidden = !(playoffs && playoffs.champion && playoffs.finalsMvp);
             if (!playoffs) {
                 $('champBanner').innerHTML = '';
-                $('bracket').innerHTML = '<p class="muted">Les séries commencent après la saison régulière (8 meilleures équipes de chaque conférence).</p>';
+                $('bracket').innerHTML = '<p class="muted">Les séries seront disponibles après les 82 matchs de saison régulière.</p>';
+                $('bracket').hidden = true;
+                $('playoffSelectionHint').textContent = 'Sélectionne une tuile de match.';
+                $('simulatePlayoffGame').disabled = true;
+                $('simulatePlayoffRound').disabled = true;
+                $('simulatePlayoffs').disabled = true;
                 return;
             }
-            const f = playoffs.final, cw = f.winner === f.a ? f.wa : f.wb, cl = f.winner === f.a ? f.wb : f.wa;
-            $('champBanner').innerHTML = `🏆 Champion ${esc(resultsLabel)} : ${esc(playoffs.champion.name)} <span>bat ${esc(playoffs.runnerUp.name)} ${cw}-${cl}</span>`;
-            $('bracket').innerHTML = playoffs.rounds.map(r => `<div class="round"><h3>${r.name}</h3>${r.series.map(seriesCard).join('')}</div>`).join('');
+            $('bracket').hidden = false;
+            $('champBanner').innerHTML = playoffs.champion
+                ? `🏆 Champion ${esc(playoffs.champion.name)}`
+                : playoffs.final ? '🏆 Finale NBA : les champions de conférence s’affrontent' : `Séries ${esc(resultsLabel)} — ${esc(activePlayoffRound()?.name || 'Terminées')}`;
+            const center = playoffs.final
+                ? `<div class="bracket-center"><h3>FINALE NBA</h3>${playoffSeriesCard(playoffs.final)}</div>`
+                : '<div class="bracket-center"><h3>FINALE NBA</h3><p class="muted">Les champions de l’Est et de l’Ouest se rencontreront ici.</p></div>';
+            $('bracket').innerHTML = `${renderConferenceBracket('West')}${center}${renderConferenceBracket('East')}`;
+            const round = activePlayoffRound();
+            const selected = round && round.series.some(series => series.games.some(game => game.id === selectedPlayoffGameId) || `${series.id}-G${series.games.length + 1}` === selectedPlayoffGameId);
+            $('simulatePlayoffGame').disabled = !selected || !round;
+            $('simulate').textContent = phase === 'playoffs' ? 'Simuler la partie sélectionnée' : 'Simuler le match';
+            $('simulatePlayoffRound').disabled = !round || !round.series.some(series => !series.winner);
+            $('simulatePlayoffs').disabled = !round || Boolean(playoffs.final) || playoffs.currentRound >= 3;
+            $('playoffSelectionHint').textContent = selected ? 'Le bouton « Simuler partie » simulera uniquement le match sélectionné.' : 'Sélectionne le prochain match d’une série du tour en cours.';
+            if (playoffs.champion && playoffs.finalsMvp) {
+                $('finalsMvpScreen').innerHTML = `<div class="award-reveal"><h2>🏆 CHAMPIONS NBA ${esc(resultsLabel)}</h2><h3>MVP DES FINALES</h3><div class="finals-mvp"><small>${esc(playoffs.finalsMvp.label)}</small><h2>${esc(playoffs.finalsMvp.name)}</h2><p>${esc(playoffs.finalsMvp.team)} · ${esc(playoffs.finalsMvp.detail)}</p><strong>Champion : ${esc(playoffs.champion.name)}</strong></div></div>`;
+            }
         }
-
+        
         /* ---------- Trophées ---------- */
-        function computeAwards() {
+        function renderSeasonAwardsPreview() {
+            if (!seasonCalendar || seasonCalendar.games.some(game => game.status !== 'completed') || !seasonResults.length) return;
+            const rows = players.map(p => ({ p, l: seasonLines.get(p.id) })).filter(x => x.l);
+            if (!rows.length) return;
+            const winPct = new Map(seasonResults.map(t => [t.code, t.winPct]));
+            let eligible = rows.filter(x => x.l.gp >= 55); if (eligible.length < 5) eligible = rows;
+            const rookieEligible = rows.filter(x => x.p.rookie && x.l.gp >= 30);
+            const best = (list, score) => list.reduce((current, item) => !current || score(item) > score(current) ? item : current, null);
+            const line = x => `${x.l.pts.toFixed(1)} PTS · ${x.l.reb.toFixed(1)} REB · ${x.l.ast.toFixed(1)} AST`;
+            const score = x => x.l.pts + x.l.ast * .8 + x.l.reb * .5;
+            const candidates = [
+                ['🏆','MVP de la saison',best(eligible,x=>(x.l.pts+x.l.reb*.55+x.l.ast*.9+x.l.stl+x.l.blk+(x.l.ts-.54)*45)*(.75+(winPct.get(x.p.team)||.5)*.5))],
+                ['🌟','Recrue de l’année',best(rookieEligible.length ? rookieEligible : rows.filter(x=>x.p.rookie),score)],
+                ['🛡️','Défenseur de l’année',best(eligible,x=>(x.l.stl*3+x.l.blk*3+x.l.reb*.35)*(.8+(winPct.get(x.p.team)||.5)*.4))],
+                ['📈','Joueur le plus amélioré',best(eligible.filter(x=>!x.p.rookie&&x.p.history.length),x=>score(x)-score({l:x.p.history[x.p.history.length-1]}))],
+                ['🪑','6e homme',best(eligible.filter(x=>x.l.mpg<=27),x=>x.l.pts+x.l.ast*.5+x.l.reb*.3)],
+                ['🎯','Meilleur marqueur',best(eligible,x=>x.l.pts)],
+                ['💪','Meilleur rebondeur',best(eligible,x=>x.l.reb)],
+                ['🎩','Meilleur passeur',best(eligible,x=>x.l.ast)]
+            ].filter(item=>item[2]);
+            $('awardsBox').innerHTML = `<div class="award-reveal"><h2>🏆 FIN DE SAISON RÉGULIÈRE — ${esc(resultsLabel)}</h2><p>Les récompenses de la saison sont révélées avant le début des playoffs.</p><div class="awards">${candidates.map(([icon,label,x])=>`<div class="award"><small>${icon} ${esc(label)}</small><b>${esc(x.p.name)}</b><span>${esc(x.p.team)} · ${line(x)}</span></div>`).join('')}</div></div>`;
+        }
+                function computeAwards() {
             const label = resultsLabel;
             const winPct = {}; seasonResults.forEach(t => winPct[t.code] = t.winPct);
             const rows = players.map(p => ({ p, l: seasonLines.get(p.id) })).filter(x => x.l);
@@ -1467,7 +1657,7 @@
         }
         function renderAwards() {
             const el = $('awardsBox');
-            if (!lastAwards) { el.innerHTML = '<p class="muted">Les trophées seront remis après les séries.</p>'; return; }
+            if (!lastAwards) { if (!seasonCalendar || seasonCalendar.games.some(game => game.status !== 'completed')) el.innerHTML = '<p class="muted">Les trophées seront présentés après les 82 matchs.</p>'; else if (!playoffs || !playoffs.champion) renderSeasonAwardsPreview(); return; }
             el.innerHTML = `<div class="champ">Saison ${esc(lastAwards.season)} <span>— Champion : ${esc(lastAwards.champion)}</span></div>
                 <div class="awards">${lastAwards.awards.map(a => `<div class="award"><small>${a.icon} ${esc(a.label)}</small><b>${esc(a.name)}</b><span>${esc(a.team)} · ${esc(a.detail)}</span></div>`).join('') || '<p class="muted">Aucun joueur éligible.</p>'}</div>
                 ${lastAwards.allNBA.length ? `<h3>Meilleur cinq de la saison</h3><div class="awards">${lastAwards.allNBA.map(a => `<div class="award"><small>⭐ All-NBA</small><b>${esc(a.name)}</b><span>${esc(a.team)} · ${esc(a.detail)}</span></div>`).join('')}</div>` : ''}`;
@@ -1559,7 +1749,8 @@
             lastDraft = { season: label, rows: draftRows };
             lastOffseason = { season: label, next, retired: retiredNow, risers, fallers, rookies: draftRows.length };
             // 4) Nouvelle saison
-            seasonYear++; phase = 'idle'; seasonLines = new Map(); seasonResults = []; seasonCalendar = null; playoffs = null;
+            seasonYear++; phase = 'idle'; seasonLines = new Map(); seasonResults = []; seasonCalendar = null; playoffs = null; selectedPlayoffGameId = null; lastAwards = null;
+            $('runPlayoffs').textContent = '2. Commencer les séries';
             $('seasonStatus').textContent = `Intersaison terminée : ${retiredNow.length} retraite(s), ${draftRows.length} recrues. La saison ${next} est prête.`;
             initializeSeasonCalendar();
             renderAll();
@@ -1582,28 +1773,45 @@
         /* ---------- Cycle & boutons ---------- */
         function updateButtons() {
             const label = seasonLabel(seasonYear);
+            const regularSeasonComplete = Boolean(seasonCalendar && seasonCalendar.games.every(game => game.status === 'completed'));
+            $('playoffsSection').hidden = !regularSeasonComplete && phase !== 'playoffs';
+            $('awardsSection').hidden = !regularSeasonComplete && phase !== 'playoffs' && !history.length;
             $('simulateSeason').disabled = phase === 'playoffs' || !seasonCalendar || !seasonCalendar.games.some(game => game.status !== 'completed');
             $('runPlayoffs').disabled = phase !== 'regular' || !seasonCalendar || seasonCalendar.games.some(game => game.status !== 'completed');
-            $('runOffseason').disabled = phase !== 'playoffs';
+            $('runOffseason').disabled = phase !== 'playoffs' || !playoffs || !playoffs.champion;
             $('resetSeason').disabled = phase === 'playoffs';
             $('dataSeason').textContent = label;
             const allGamesPlayed = Boolean(seasonCalendar && seasonCalendar.games.every(game => game.status === 'completed'));
-            $('phaseLabel').textContent = `Saison ${label} — ` + (phase === 'idle' ? 'calendrier prêt / intersaison' : phase === 'regular' ? (allGamesPlayed ? 'saison régulière terminée, séries à jouer' : 'saison régulière en cours') : 'séries terminées, intersaison à faire');
+            $('phaseLabel').textContent = `Saison ${label} — ` + (phase === 'idle' ? 'calendrier prêt / intersaison' : phase === 'regular' ? (allGamesPlayed ? 'saison régulière terminée, séries à jouer' : 'saison régulière en cours') : playoffs && playoffs.champion ? 'séries terminées, intersaison à faire' : playoffs && playoffs.final ? 'Finale NBA en cours' : 'playoffs en cours');
         }
         function renderAll() { render(); updateSeasonBoxes(); renderStandings(); renderSeasonCalendar(); renderPlayoffs(); renderAwards(); renderHistory(); renderOffseason(); updateButtons(); }
         function runAll() {
             if (phase !== 'playoffs') buildSeason();
-            if (phase === 'regular') runPlayoffs();
-            runOffseason();
+            if (phase === 'regular') initializePlayoffs();
+            if (phase === 'playoffs' && playoffs && !playoffs.champion) {
+                simulatePlayoffsToConferenceFinals();
+                if (playoffs.final && !playoffs.champion) completePlayoffSeries(playoffs.final);
+            }
+            if (phase === 'playoffs' && playoffs && playoffs.champion) runOffseason();
         }
         function runYears(n) { for (let i = 0; i < n; i++) runAll(); }
 
         $('simulateSeason').onclick = buildSeason;
         $('runPlayoffs').onclick = runPlayoffs;
+        $('simulatePlayoffGame').onclick = () => { if (selectedPlayoffGameId) simulateOnePlayoffGame(selectedPlayoffGameId); };
+        $('simulatePlayoffRound').onclick = simulateCurrentPlayoffRound;
+        $('simulatePlayoffs').onclick = simulatePlayoffsToConferenceFinals;
+        $('bracket').addEventListener('click', event => {
+            const tile = event.target.closest('[data-playoff-game]');
+            if (!tile || tile.disabled) return;
+            selectedPlayoffGameId = tile.dataset.playoffGame;
+            renderPlayoffs();
+        });
+        
         $('runOffseason').onclick = runOffseason;
         $('runYear').onclick = () => runYears(1);
         $('runFive').onclick = () => runYears(5);
-        $('resetSeason').onclick = () => { if (phase === 'playoffs') return; seasonResults = []; seasonCalendar = null; playoffs = null; lastAwards = null; seasonLines = new Map(); phase = 'idle'; $('seasonStatus').textContent = 'Classement réinitialisé.'; initializeSeasonCalendar(); renderAll(); };
+        $('resetSeason').onclick = () => { if (phase === 'playoffs') return; seasonResults = []; seasonCalendar = null; playoffs = null; selectedPlayoffGameId = null; lastAwards = null; seasonLines = new Map(); phase = 'idle'; $('seasonStatus').textContent = 'Classement réinitialisé.'; initializeSeasonCalendar(); renderAll(); };
         $('conferenceFilter').onchange = renderStandings; $('standingsSort').onchange = renderStandings;
         $('scheduleTeamFilter').onchange = renderSeasonCalendar;
         $('seasonStatsSearch').oninput = renderSeasonStats;
@@ -1753,7 +1961,7 @@
             $('gameLog').innerHTML = `<p>${labels.map(esc).join('<br>')}</p><p>Possessions : ${n} · Variance : ${variance}% · Cinq utilisé : ${five.map(p => esc(p.name)).join(', ')}</p><p>${defensivePlays.slice(0, 5).map(esc).join('<br>') || 'Aucune interception ou contres simulés.'}</p><small>Match simplifié : les défenses et les tirs sont échantillonnés selon les attributs; ce n’est pas une simulation complète de possessions NBA.</small>`;
             if (win + lose === 82) { win = 0; lose = 0; }
         }
-        $('simulate').onclick = simulateNextSeasonGame;
+        $('simulate').onclick = () => { if (phase === 'playoffs') { if (selectedPlayoffGameId) simulateOnePlayoffGame(selectedPlayoffGameId); else $('gameLog').textContent = 'Sélectionne une tuile de match des playoffs avant de cliquer sur Simuler le match.'; } else simulateNextSeasonGame(); };
         $('seasonCalendarView').addEventListener('click', event => {
             const tile = event.target.closest('button[data-game-id]');
             if (!tile || tile.disabled || !seasonCalendar) return;
