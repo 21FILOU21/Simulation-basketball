@@ -856,7 +856,27 @@
                     const a = byCode.get(series.aCode), b = byCode.get(series.bCode);
                     return a && b ? { ...series, a, b, winner: byCode.get(series.winnerCode), loser: byCode.get(series.loserCode) } : null;
                 };
-                if (savedState.playoffs && Array.isArray(savedState.playoffs.rounds)) {
+                if (savedState.playoffs && savedState.playoffs.confRounds) {
+                    const decodeGame = (game, series) => {
+                        const home = byCode.get(game.homeCode) || (game.home && byCode.get(game.home.code));
+                        const away = byCode.get(game.awayCode) || (game.away && byCode.get(game.away.code));
+                        return home && away ? { ...game, home, away, completed: Boolean(game.completed) } : null;
+                    };
+                    const decodeCurrentSeries = series => {
+                        const decoded = decodeSeries({ ...series, wa: series.winsA, wb: series.winsB });
+                        if (!decoded) return null;
+                        decoded.winsA = Number(series.winsA) || 0;
+                        decoded.winsB = Number(series.winsB) || 0;
+                        decoded.winner = byCode.get(series.winnerCode) || null;
+                        decoded.loser = byCode.get(series.loserCode) || null;
+                        decoded.games = (series.games || []).map(game => decodeGame(game, decoded)).filter(Boolean);
+                        return decoded;
+                    };
+                    const decodeRounds = rounds => (rounds || []).map(round => ({ ...round, series: (round.series || []).map(decodeCurrentSeries).filter(Boolean) }));
+                    const confRounds = { West: decodeRounds(savedState.playoffs.confRounds.West), East: decodeRounds(savedState.playoffs.confRounds.East) };
+                    const final = savedState.playoffs.final ? decodeCurrentSeries(savedState.playoffs.final) : null;
+                    playoffs = { confRounds, final, champion: byCode.get(savedState.playoffs.championCode) || null, runnerUp: byCode.get(savedState.playoffs.runnerUpCode) || null, currentRound: Number(savedState.playoffs.currentRound) || 0, conferenceChampions: {} };
+                } else if (savedState.playoffs && Array.isArray(savedState.playoffs.rounds)) {
                     const rounds = savedState.playoffs.rounds.map(round => ({ ...round, series: round.series.map(decodeSeries).filter(Boolean) }));
                     const finalSaved = savedState.playoffs.final;
                     const final = rounds[3]?.series.find(series => series.a.code === finalSaved?.aCode && series.b.code === finalSaved?.bCode);
