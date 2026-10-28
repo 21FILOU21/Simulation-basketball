@@ -26,10 +26,21 @@ assert.match(script, /id="viewPlayoffBoxScore"/, "The box-score button should be
 assert.doesNotMatch(html, /id="simulatePlayoffGame"|id="simulatePlayoffRound"|id="simulatePlayoffs"/, "The old playoff simulation buttons should be removed.");
 assert.match(script, /if \(found && found\.game\.completed\)/, "A completed playoff game should be selectable for its box score.");
 assert.match(script, /Partie jouée · Box score/, "Playoff tiles should no longer display every game score.");
-assert.match(script, /if \(!west \|\| !east \|\| !west\.series\.every\(s => s\.winner\) \|\| !east\.series\.every\(s => s\.winner\)\) return;/, "A later round must wait until every series in both conferences is complete.");
+const presentation = fs.readFileSync(path.join(__dirname, "..", "src", "season-presentation.js"), "utf8");
+new Function(presentation); // Syntax check for fullscreen presentation.
+assert.match(script, /function ensureNextPlayoffRound\(\)/, "Playoff round transitions should be explicit.");
+assert.match(script, /const seriesCount = west\.series\.length/, "Round transitions should validate the number of series before pairing winners.");
+assert.match(script, /seriesCount === 4/, "The first round should pair four series winners into two semifinals.");
+assert.match(script, /seriesCount === 2/, "The conference semifinals should pair their two winners into the conference finals.");
+assert.match(script, /seriesCount === 1/, "The conference finals should produce the NBA Finals.");
 assert.match(script, /renderConferenceBracket\('West'\)/, "The West bracket should be rendered.");
 assert.match(script, /renderConferenceBracket\('East'\)/, "The East bracket should be rendered.");
-assert.match(script, /MVP DES FINALES/, "The NBA Finals MVP screen should be displayed after the Finals.");
-assert.match(script, /!playoffs \|\| !playoffs\.champion/, "The offseason should be blocked until the NBA champion is determined.");
+assert.match(script, /Bilan de la série/, "Each playoff matchup should show its aggregate series score.");
+assert.doesNotMatch(script, /Partie jouée · Box score/, "The bracket should not list every game as a separate tile.");
+assert.match(presentation, /series-scoreline/, "The playoff layout should fit a full-width bracket.");
+assert.match(presentation, /while\(playoffs&&!playoffs\.champion&&guard\+\+<500\)/, "Simulate playoffs should advance safely until a champion is decided.");
+assert.match(presentation, /function showFinalsMvp\(\)/, "The Finals MVP screen should appear after the champion confirmation.");
+assert.doesNotMatch(presentation, /Aucune récompense disponible\./, "The season awards screen should recover awards if the preview cards are missing.");
+assert.match(script, /if \(!playoffs \|\| !playoffs\.champion/, "The offseason should be blocked until the NBA champion is determined.");
 
-console.log("OK — tests statiques UI : couleurs, transition de fin de saison, navigation playoffs et box scores.");
+console.log("OK — playoffs : transitions sécurisées, scores cumulés des séries, tableau responsive et écrans de récompenses.");
