@@ -3,10 +3,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
-const scripts = [...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi)].map(match => match[1]).filter(Boolean);
-const script = scripts.at(-1);
+const scriptStart = html.lastIndexOf("<script>") + "<script>".length;
+const scriptEnd = html.indexOf("</script>", scriptStart);
+const script = html.slice(scriptStart, scriptEnd);
 
-assert.ok(script, "The application script should exist.");
+assert.ok(script && scriptEnd > scriptStart, "The application script should exist.");
 new Function(script); // Syntax check.
 assert.match(html, /\.schedule-game\.loss \.game-status[^}]*color:#ff4545/, "Defeats should be red.");
 assert.match(html, /\.schedule-game\.win \.game-status[^}]*color:#39d98a/, "Victories should be green.");
