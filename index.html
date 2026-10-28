@@ -1,0 +1,1647 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>NBA Sim Lab — Dynastie</title>
+    <style>
+        :root {
+            --bg: #0a1020;
+            --panel: #111b30;
+            --line: #2a3b59;
+            --txt: #edf3ff;
+            --muted: #9fb0cc;
+            --blue: #67a6ff;
+            --orange: #ff9b54;
+            --green: #62d9a4;
+            --gold: #ffd166
+        }
+
+        * { box-sizing: border-box }
+
+        body {
+            margin: 0;
+            background: radial-gradient(ellipse at top, #172b4b 0, #0a1020 55%);
+            color: var(--txt);
+            font: 15px/1.45 system-ui, -apple-system, Segoe UI, sans-serif
+        }
+
+        main { max-width: 1250px; margin: auto; padding: 26px 18px 60px }
+        .eyebrow { color: var(--orange); font-weight: 800; letter-spacing: .15em; font-size: 12px }
+        h1 { font-size: clamp(30px, 5vw, 48px); margin: 5px 0 }
+        h2 { margin: 0 0 14px; font-size: 20px }
+        h3 { margin: 18px 0 8px; font-size: 15px; color: var(--blue) }
+        p { color: var(--muted) }
+        .top { display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 22px }
+
+        .panel {
+            background: linear-gradient(145deg, #14213a, #0f192b);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 19px;
+            margin: 14px 0;
+            box-shadow: 0 12px 32px #0002
+        }
+
+        .actions { display: flex; gap: 8px; flex-wrap: wrap }
+
+        .btn {
+            border: 1px solid #385174;
+            background: #213657;
+            color: white;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-weight: 750;
+            cursor: pointer
+        }
+        .btn.primary { background: var(--blue); border-color: var(--blue); color: #061326 }
+        .btn.orange { background: var(--orange); border-color: var(--orange); color: #231307 }
+        .btn.gold { background: var(--gold); border-color: var(--gold); color: #2a1f00 }
+        .btn:disabled { opacity: .4; cursor: not-allowed }
+
+        .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
+        .stat { background: #0c1527; border: 1px solid var(--line); border-radius: 12px; padding: 12px }
+        .stat b { font-size: 23px; display: block }
+        .stat span { font-size: 12px; color: var(--muted) }
+
+        .layout { display: grid; grid-template-columns: 1.05fr .95fr; gap: 14px }
+
+        .slots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px }
+        .slot {
+            min-height: 118px;
+            border: 1px dashed #486184;
+            background: #0d1729;
+            border-radius: 13px;
+            padding: 10px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 4px
+        }
+        .slot.full { border-style: solid; border-color: var(--blue) }
+        .slot .pos { font-size: 11px; color: var(--orange); font-weight: 800 }
+        .slot strong { font-size: 13px }
+        .slot small { color: var(--muted) }
+        .slot button { font-size: 11px; padding: 5px 7px }
+
+        .wheelwrap { display: flex; gap: 20px; align-items: center; flex-wrap: wrap }
+        .wheel {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 7px solid #dbe8ff;
+            box-shadow: 0 0 0 5px #243b60, 0 12px 35px #0005;
+            display: grid;
+            place-items: center;
+            background: conic-gradient(#ff9b54 0 45deg, #263e64 45deg 90deg, #67a6ff 90deg 135deg, #263e64 135deg 180deg, #62d9a4 180deg 225deg, #263e64 225deg 270deg, #ff9b54 270deg 315deg, #263e64 315deg);
+            transition: transform 3s cubic-bezier(.12, .78, .15, 1);
+            flex: none
+        }
+        .wheel span {
+            background: #0b1425;
+            border: 3px solid #dbe8ff;
+            border-radius: 50%;
+            width: 74px;
+            height: 74px;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            font-weight: 900;
+            font-size: 13px
+        }
+
+        .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: end }
+        .field { display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 12px }
+        .field input, .field select {
+            background: #0b1527;
+            color: white;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            padding: 10px;
+            min-width: 130px
+        }
+
+        .picks { display: grid; gap: 6px; max-height: 260px; overflow: auto; margin-top: 10px }
+        .pick {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            align-items: center;
+            padding: 8px 10px;
+            background: #0c1628;
+            border: 1px solid #263958;
+            border-radius: 10px
+        }
+        .pick small { color: var(--muted); display: block }
+        .pick .btn { padding: 6px 10px; font-size: 12px }
+
+        .pill {
+            display: inline-block;
+            border: 1px solid #385174;
+            border-radius: 99px;
+            padding: 2px 7px;
+            font-size: 11px;
+            color: #c7d9f8;
+            margin: 3px 3px 0 0
+        }
+        .pill.gold { border-color: var(--gold); color: var(--gold) }
+
+        .tablewrap { overflow: auto }
+        table { border-collapse: collapse; width: 100%; font-size: 13px }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--line); white-space: nowrap }
+        th { color: var(--muted); font-weight: 700 }
+        .tablewrap tbody tr:hover { background: #ffffff08 }
+        input[type=range] { accent-color: var(--blue); width: 100% }
+
+        .notice { border-left: 3px solid var(--orange); padding: 10px 13px; background: #251f20; color: #f7d9c2; border-radius: 0 8px 8px 0 }
+        .muted { color: var(--muted) }
+        .result { font-size: 32px; font-weight: 900 }
+        footer { color: var(--muted); font-size: 12px; margin-top: 20px }
+
+        .rank { color: var(--orange); font-weight: 900 }
+        .team-name { font-weight: 800 }
+        .editor-grid { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 10px }
+        .editor-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: end }
+        .editor-actions .field { flex: 1; min-width: 130px }
+        .attribute-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 8px; margin: 10px 0 }
+        .attribute-grid .field input { min-width: 0; width: 100% }
+        .attribute-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px }
+        .attribute-group { background: #0c1527; border: 1px solid var(--line); border-radius: 12px; padding: 12px }
+        .player-card { background: #0c1527; border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-top: 10px }
+        .attribute-bars { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px 12px }
+        .attribute-bar { display: grid; grid-template-columns: 1fr auto; gap: 4px; font-size: 12px; color: var(--muted) }
+        .attribute-bar progress { grid-column: 1 / -1; width: 100%; height: 7px; accent-color: var(--blue) }
+        .career-log { max-height: 250px; overflow: auto; padding: 10px; background: #0c1527; border: 1px solid var(--line); border-radius: 12px }
+        .career-log p { margin: 4px 0 }
+
+        .phase { display: inline-block; background: #0c1527; border: 1px solid var(--line); border-radius: 99px; padding: 6px 14px; font-weight: 800; color: var(--gold); margin: 6px 0 }
+
+        /* Séries */
+        .champ { font-size: 20px; font-weight: 900; color: var(--gold); margin: 8px 0 }
+        .champ span { color: var(--muted); font-size: 14px; font-weight: 600 }
+        .bracket { display: grid; grid-template-columns: repeat(4, minmax(170px, 1fr)); gap: 12px; overflow: auto }
+        .round h3 { margin-top: 0 }
+        .series { background: #0c1628; border: 1px solid #263958; border-radius: 10px; padding: 8px 10px; margin-bottom: 8px }
+        .series small { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .08em }
+        .srow { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; color: var(--muted) }
+        .srow.won { color: var(--txt); font-weight: 800 }
+        .srow.won b { color: var(--green) }
+
+        /* Trophées */
+        .awards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px }
+        .award { background: #0c1527; border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 2px }
+        .award small { color: var(--gold); font-weight: 800 }
+        .award b { font-size: 16px }
+        .award span { color: var(--muted); font-size: 12px }
+
+        @media(max-width:850px) {
+            .layout { grid-template-columns: 1fr }
+            .stats { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+            .slots { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+            .slot:last-child { grid-column: span 2 }
+            .editor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+            .awards { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+            .attribute-groups { grid-template-columns: 1fr }
+        }
+        @media(max-width:520px) {
+            .editor-grid { grid-template-columns: 1fr }
+            .awards { grid-template-columns: 1fr }
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <div class="top">
+            <div>
+                <div class="eyebrow">COURTSIDE LAB / MODE DYNASTIE</div>
+                <h1>NBA Sim Lab <span style="color:var(--orange)">26</span></h1>
+                <p>Construis ton équipe, simule la saison, les séries, les trophées, le vieillissement et le repêchage — année après année.</p>
+            </div>
+            <div class="actions"><button class="btn" id="export">Exporter les stats .txt</button><button class="btn" id="exportSave">Sauvegarder JSON</button><label class="btn"
+                    for="importFile">Importer un fichier JSON</label><input hidden id="importFile" type="file"
+                    accept=".json,.txt,application/json"></div>
+        </div>
+
+        <div class="panel">
+            <h2>01 — Données joueurs</h2>
+            <div class="notice">Le site NBA ne peut pas être aspiré de façon fiable depuis une page HTML locale (CORS). Le bouton ci-dessous charge un jeu de démonstration clairement identifié. Pour des stats réelles, importe un JSON (champs : name, team, pos, pts, reb, ast, ts, three, mpg, et optionnellement age, stl, blk).</div>
+            <div class="actions" style="margin-top:13px"><button class="btn primary" id="demo">Charger les joueurs de démo</button><button class="btn" id="reset">Tout réinitialiser</button></div>
+            <p id="dataStatus">Aucune donnée chargée.</p>
+            <div class="stats">
+                <div class="stat"><b id="playerCount">0</b><span>Joueurs en base</span></div>
+                <div class="stat"><b id="teamCount">0</b><span>Équipes avec des joueurs</span></div>
+                <div class="stat"><b id="avgTs">—</b><span>TS% moyen</span></div>
+                <div class="stat"><b id="dataSeason">2025-26</b><span>Saison en cours</span></div>
+            </div>
+        </div>
+
+        <!-- 02 : roue + cinq starters + création d'équipe -->
+        <section class="panel">
+            <h2>02 — Mon équipe : roue, cinq starters & création</h2>
+            <p>Choisis les joueurs avec la roue ou la recherche, complète les cinq postes et crée ton équipe personnalisée. Elle entrera dans le classement à la prochaine saison. La simulation de match et les résultats d’intersaison sont regroupés plus bas dans cette section.</p>
+            <div class="slots" id="slots"></div>
+            <div class="layout" style="margin-top:16px">
+                <div>
+                    <h3 style="margin-top:0">🎡 Choisir des joueurs</h3>
+                    <div class="wheelwrap">
+                        <div class="wheel" id="wheel"><span id="wheelLabel">NBA<br>ROUE</span></div>
+                        <div style="flex:1;min-width:170px">
+                            <div class="result" id="teamResult" style="font-size:26px">—</div>
+                            <p id="teamHint" style="margin:4px 0 8px">Charge la base pour commencer.</p>
+                            <div class="actions">
+                                <button class="btn orange" id="spin" disabled>Faire tourner la roue</button>
+                                <button class="btn gold" id="autoFill" disabled>Remplir les spots vides</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="controls" style="margin-top:12px">
+                        <label class="field" style="flex:1">Rechercher un joueur<input id="pickSearch" placeholder="Nom, équipe ou poste…"></label>
+                    </div>
+                    <div class="picks" id="teamPicks"></div>
+                </div>
+                <div>
+                    <h3 style="margin-top:0">🏀 Créer mon équipe</h3>
+                    <div class="controls">
+                        <label class="field" style="flex:2">Nom de l’équipe<input id="customTeamName" placeholder="Ex. Montréal Meteors"></label>
+                        <label class="field">Code (3-5)<input id="customTeamCode" maxlength="5" placeholder="MTL" style="min-width:90px"></label>
+                        <label class="field">Conférence<select id="customTeamConference"><option value="East">Est</option><option value="West">Ouest</option></select></label>
+                    </div>
+                    <div class="actions" style="margin-top:12px">
+                        <button class="btn primary" id="createCustomTeam">Créer l’équipe</button>
+                        <button class="btn" id="updateCustomTeam">Modifier</button>
+                        <button class="btn orange" id="deleteCustomTeam">Supprimer</button>
+                        <button class="btn" id="clearCustomTeam">Vider</button>
+                    </div>
+                    <label class="field" style="margin-top:12px">Mes équipes (choisis-en une pour la charger)
+                        <select id="customTeamSelect"><option value="">— Nouvelle équipe —</option></select></label>
+                    <p id="customTeamStatus" class="muted">Remplis les cinq spots puis donne un nom à ton équipe.</p>
+                </div>
+            </div>
+            <div class="tablewrap"><table><thead><tr><th>Équipe personnalisée</th><th>Conférence</th><th>Effectif</th><th>Force estimée</th></tr></thead><tbody id="customTeamsTable"></tbody></table></div>
+            <h3>Simulation d’un match avec mon cinq</h3>
+            <p>Simulation simplifiée : les probabilités viennent du TS%, du tir à 3 points et de la forme hot / cold.</p>
+            <div class="stats">
+                <div class="stat"><b id="scoreA">0</b><span>Ton cinq</span></div>
+                <div class="stat"><b id="scoreB">0</b><span>Adversaire simulé</span></div>
+                <div class="stat"><b id="winner">—</b><span>Résultat</span></div>
+                <div class="stat"><b id="momentum">Neutre</b><span>Momentum de forme</span></div>
+                <div class="stat"><b id="Wins">0</b><span>Matchs gagnés</span></div>
+                <div class="stat"><b id="Loses">0</b><span>Matchs perdus</span></div>
+            </div>
+            <div class="controls" style="margin:14px 0">
+                <label class="field">Possessions par équipe<select id="possessions">
+                        <option>60</option><option selected>90</option><option>100</option><option>120</option><option>200</option>
+                    </select></label>
+                <label class="field">Variance hot/cold <span id="varianceValue">65%</span><input type="range" id="variance" min="0" max="100" value="65"></label>
+                <button class="btn primary" id="simulate">Simuler le match</button>
+            </div>
+            <div id="gameLog" class="muted">Le journal du match apparaîtra ici.</div>
+            <h3>Intersaison : progression, retraites & repêchage</h3>
+            <p>Après les séries, les joueurs évoluent, les vétérans peuvent prendre leur retraite et chaque équipe repêche deux recrues.</p>
+            <div id="offseasonBox"></div>
+            <h3>Repêchage</h3>
+            <div class="tablewrap" style="max-height:380px">
+                <table>
+                    <thead><tr><th>#</th><th>Tour</th><th>Équipe</th><th>Joueur</th><th>Poste</th><th>Âge</th><th>PTS</th><th>REB</th><th>AST</th></tr></thead>
+                    <tbody id="draftTable"></tbody>
+                </table>
+            </div>
+            <h3>Joueurs retraités</h3>
+            <div class="tablewrap" style="max-height:340px">
+                <table>
+                    <thead><tr><th>Joueur</th><th>Dernière équipe</th><th>Âge</th><th>Saisons</th><th>Derniers PTS</th><th>Retraite</th><th>Trophées</th></tr></thead>
+                    <tbody id="retiredTable"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>03 — Base de joueurs & stats</h2>
+            <div class="controls">
+                <label class="field" style="flex:1">Rechercher<input id="search" placeholder="Nom, équipe ou poste…"></label>
+                <label class="field">Trier par<select id="sort">
+                        <option value="pts">Points</option><option value="ts">True Shooting</option><option value="three">3P%</option>
+                        <option value="reb">Rebonds</option><option value="ast">Passes</option><option value="age">Âge</option>
+                    </select></label>
+            </div>
+            <div class="tablewrap" style="max-height:520px">
+                <table>
+                    <thead><tr><th>Joueur</th><th>Équipe</th><th>Poste</th><th>Taille</th><th>GÉN</th><th>Âge</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TS%</th><th>3P%</th><th>MPG</th><th>Trophées</th></tr></thead>
+                    <tbody id="playerTable"></tbody>
+                </table>
+            </div>
+            <h3>Statistiques par saison</h3>
+            <p class="muted">Les statistiques sont échantillonnées sur des possessions individuelles, avec tirs, passes, pertes de balle et événements défensifs. Le +/- reste une estimation du modèle. L’historique est conservé après les playoffs et les retraites.</p>
+            <label class="field" style="margin-bottom:10px">Rechercher<input id="seasonStatsSearch" placeholder="Joueur, équipe ou saison…"></label>
+            <div class="tablewrap" style="max-height:420px">
+                <table>
+                    <thead><tr><th>Saison</th><th>Joueur</th><th>Équipe</th><th>MJ</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>FG%</th><th>3P%</th><th>FT%</th><th>TS%</th><th>TOV</th><th>+/- estimé</th><th>MJ manqués</th><th>MPG</th></tr></thead>
+                    <tbody id="seasonStatsTable"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>04 — Saison régulière (82 matchs)</h2>
+            <p>Simule les 30 franchises NBA et tes équipes personnalisées. Les 8 meilleures de chaque conférence se qualifient pour les séries. Cycle d’une année : saison → séries → trophées → vieillissement, retraites et repêchage.</p>
+            <div class="phase" id="phaseLabel">Saison 2025-26 — à simuler</div>
+            <div class="actions">
+                <button class="btn primary" id="simulateSeason">1. Simuler la saison régulière</button>
+                <button class="btn orange" id="runPlayoffs">2. Simuler les séries</button>
+                <button class="btn gold" id="runOffseason">3. Intersaison (évolution + repêchage)</button>
+            </div>
+            <div class="actions" style="margin-top:8px">
+                <button class="btn primary" id="runYear">▶ Année complète</button>
+                <button class="btn" id="runFive">⏩ 5 années</button>
+                <button class="btn" id="resetSeason">Réinitialiser le classement</button>
+                <button class="btn" id="exportStandings">Exporter le classement .txt</button>
+            </div>
+            <p id="seasonStatus" class="muted">Aucune saison simulée pour le moment.</p>
+            <div class="stats">
+                <div class="stat"><b id="seasonGames">0</b><span>Matchs simulés</span></div>
+                <div class="stat"><b id="seasonLeader">—</b><span>Meilleur bilan</span></div>
+                <div class="stat"><b id="seasonTopPPG">—</b><span>Meilleure attaque (PPG)</span></div>
+                <div class="stat"><b id="seasonTopAPG">—</b><span>Plus de passes (APG)</span></div>
+            </div>
+            <div class="controls" style="margin-top:14px">
+                <label class="field">Conférence
+                    <select id="conferenceFilter"><option value="ALL">Toute la NBA</option><option value="East">Est</option><option value="West">Ouest</option></select>
+                </label>
+                <label class="field">Trier par
+                    <select id="standingsSort">
+                        <option value="winPct">Pourcentage de victoires</option><option value="wins">Victoires</option>
+                        <option value="ppg">PPG</option><option value="apg">APG</option><option value="rpg">RPG</option>
+                        <option value="oppg">Points encaissés</option><option value="diff">Différentiel</option>
+                    </select>
+                </label>
+            </div>
+            <div class="tablewrap">
+                <table>
+                    <thead><tr><th>#</th><th>Équipe</th><th>Conf.</th><th>Séries</th><th>V</th><th>D</th><th>Win%</th><th>PPG</th><th>OPPG</th><th>Diff.</th><th>APG</th><th>RPG</th><th>SPG</th><th>BPG</th><th>TOV</th></tr></thead>
+                    <tbody id="standingsTable"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>05 — Séries éliminatoires</h2>
+            <p>Les 8 premiers de chaque conférence, séries au meilleur des 7 matchs : 1 vs 8, 4 vs 5, 3 vs 6, 2 vs 7, puis demi-finales, finales de conférence et finale NBA.</p>
+            <div class="champ" id="champBanner"></div>
+            <div class="bracket" id="bracket"></div>
+        </section>
+
+        <section class="panel">
+            <h2>06 — Trophées & palmarès</h2>
+            <p>Remis après les séries, d’après les stats de la saison de chaque joueur (matchs joués, bilan de l’équipe, défense, progression…).</p>
+            <div id="awardsBox"></div>
+            <h3>Palmarès historique</h3>
+            <div class="actions" style="margin-bottom:8px"><button class="btn" id="exportHistory">Exporter le palmarès .txt</button></div>
+            <div class="tablewrap">
+                <table>
+                    <thead><tr><th>Saison</th><th>Champion</th><th>Finaliste</th><th>MVP</th><th>MVP Finales</th><th>DPOY</th><th>Recrue</th><th>Plus amélioré</th><th>6e homme</th><th>Marqueur</th></tr></thead>
+                    <tbody id="historyTable"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>07 — Carrière : joueur suivi ou contrôlé</h2>
+            <p>Choisis un joueur actif pour consulter son profil et ses statistiques de carrière. Le mode contrôlé propose des décisions offensives résolues par ses attributs; il s’agit d’un match simplifié, pas d’une simulation complète de saison.</p>
+            <div class="controls">
+                <label class="field" style="flex:1">Joueur suivi (actif ou retraité)<select id="followPlayer"></select></label>
+                <label class="field">Mode<select id="careerMode"><option value="follow">Joueur suivi</option><option value="controlled">Joueur contrôlé</option></select></label>
+                <button class="btn primary" id="startCareerGame">Commencer un match</button>
+            </div>
+            <div id="followProfile" class="player-card muted">Charge les joueurs pour afficher leur fiche de carrière.</div>
+            <div id="careerMatch" hidden>
+                <div class="stats">
+                    <div class="stat"><b id="careerScore">0 - 0</b><span>Score</span></div>
+                    <div class="stat"><b id="careerClock">Q1 · 12:00</b><span>Temps restant</span></div>
+                    <div class="stat"><b id="careerPossession">0</b><span>Séquence de jeu</span></div>
+                    <div class="stat"><b id="careerLine">0 PTS · 0 REB · 0 AST</b><span>Stats du joueur</span></div>
+                </div>
+                <h3>Décision offensive</h3>
+                <div class="actions" id="careerActions">
+                    <button class="btn primary" data-action="three">Tir à 3 points</button>
+                    <button class="btn" data-action="mid">Tir à mi-distance</button>
+                    <button class="btn" data-action="drive">Pénétration / layup</button>
+                    <button class="btn orange" data-action="dunk">Dunk</button>
+                    <button class="btn" data-action="isolation">Isolation</button>
+                    <button class="btn" data-action="pick">Pick-and-roll</button>
+                    <button class="btn gold" data-action="pass">Passe au coéquipier</button>
+                </div>
+                <div id="careerLog" class="career-log" aria-live="polite"></div>
+            </div>
+            <div class="tablewrap" style="margin-top:12px">
+                <table><thead><tr><th>Saison</th><th>Équipe</th><th>Taille</th><th>GÉN</th><th>MJ</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>Trophées</th></tr></thead><tbody id="followHistory"></tbody></table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>08 — Créateur / modificateur / supprimeur de joueur</h2>
+            <p>Remplis les champs puis clique sur « Créer ». Pour modifier ou supprimer, sélectionne d’abord un joueur dans la liste.</p>
+            <div class="editor-grid">
+                <label class="field">Nom<input id="editName" placeholder="Nom du joueur"></label>
+                <label class="field">Équipe<select id="editTeam"></select></label>
+                <label class="field">Poste<select id="editPos"><option>PG</option><option>SG</option><option>SF</option><option>PF</option><option>C</option></select></label>
+                <label class="field">Âge<input id="editAge" type="number" min="18" max="45" step="1" value="24"></label>
+                <label class="field">Taille (cm)<input id="editHeight" type="number" min="150" max="240" step="1" value="190"></label>
+                <label class="field">PPG<input id="editPts" type="number" min="0" max="60" step="0.1" value="10"></label>
+                <label class="field">RPG<input id="editReb" type="number" min="0" max="30" step="0.1" value="4"></label>
+                <label class="field">APG<input id="editAst" type="number" min="0" max="25" step="0.1" value="3"></label>
+                <label class="field">TS%<input id="editTs" type="number" min="0" max="100" step="0.1" value="56"></label>
+                <label class="field">3P%<input id="editThree" type="number" min="0" max="100" step="0.1" value="35"></label>
+                <label class="field">MPG<input id="editMpg" type="number" min="0" max="48" step="0.1" value="20"></label>
+            </div>
+            <details style="margin-top:14px">
+                <summary class="btn">Attributs individuels (0–100)</summary>
+                <div id="attributeEditor" class="attribute-groups"></div>
+            </details>
+            <p class="muted">La note générale est calculée selon le poste; la taille influence les aptitudes physiques mais ne pénalise pas directement la note.</p>
+            <div class="stat" style="margin-top:10px"><b id="editOverall">GÉN —</b><span>Note générale calculée</span></div>
+            <div class="editor-actions" style="margin-top:12px">
+                <label class="field" style="flex:2">Joueur à modifier / supprimer<select id="editPlayerSelect"><option value="">— Nouveau joueur —</option></select></label>
+                <button class="btn primary" id="createPlayer">Créer</button>
+                <button class="btn" id="updatePlayer">Modifier</button>
+                <button class="btn orange" id="deletePlayer">Supprimer</button>
+                <button class="btn" id="clearEditor">Vider les champs</button>
+            </div>
+            <p id="editorStatus" class="muted">Prêt.</p>
+        </section>
+
+        <footer>NBA Sim Lab — prototype local. Les données restent dans la session du navigateur jusqu’à export; aucun serveur ni compte n’est utilisé. Toutes les saisons, trophées et repêchages sont générés par le modèle de ce prototype et ne sont pas des résultats NBA réels.</footer>
+    </main>
+
+    <script>
+        const $ = id => document.getElementById(id);
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        const rnd = () => Math.random();
+        const positions = ['PG', 'SG', 'SF', 'PF', 'C'];
+
+        let players = [], starters = [null, null, null, null, null], selectedTeam = null, spinTurns = 0;
+        let win = 0, lose = 0;
+        let seasonYear = 2025, phase = 'idle'; // idle | regular | playoffs
+        let seasonResults = [], resultsLabel = '', playoffs = null, seasonLines = new Map(), seasonStatHistory = [];
+        let history = [], retired = [], lastDraft = null, lastAwards = null, lastOffseason = null;
+        let customTeams = [], nextCustomTeamId = 1, nextPlayerId = 1000;
+        let followedPlayerId = null, careerGame = null, savedLeagueMeta = null;
+        const seasonLabel = y => `${y}-${String((y + 1) % 100).padStart(2, '0')}`;
+        const attributeGroups = {
+            Offensif: [['finishing', 'Finition'], ['layup', 'Layup'], ['dunk', 'Dunk'], ['closeShot', 'Tir rapproché'], ['midRange', 'Mi-distance'], ['threePoint', 'Tir à 3 pts'], ['freeThrow', 'Lancers francs'], ['shotIQ', 'QI de tir'], ['ballHandle', 'Contrôle du ballon'], ['passing', 'Passes'], ['playmaking', 'Création'], ['offensiveIQ', 'QI offensif']],
+            Défensif: [['perimeterDefense', 'Défense extérieure'], ['interiorDefense', 'Défense intérieure'], ['steal', 'Interception'], ['block', 'Contre'], ['defensiveIQ', 'QI défensif'], ['defensiveRebound', 'Rebond défensif'], ['offensiveRebound', 'Rebond offensif']],
+            Physique: [['speed', 'Vitesse'], ['acceleration', 'Accélération'], ['agility', 'Agilité'], ['strength', 'Force'], ['vertical', 'Détente'], ['stamina', 'Endurance'], ['durability', 'Durabilité']],
+            Mental: [['consistency', 'Régularité'], ['clutch', 'Clutch'], ['potential', 'Potentiel'], ['workEthic', 'Éthique de travail'], ['basketballIQ', 'QI basket']]
+        };
+        const attributeNames = Object.values(attributeGroups).flat();
+        const positionWeights = {
+            PG: { ballHandle: 1.25, playmaking: 1.25, passing: 1.2, threePoint: 1.1, speed: 1.15, acceleration: 1.1, offensiveIQ: 1.1 },
+            SG: { threePoint: 1.25, midRange: 1.15, shotIQ: 1.15, agility: 1.1, perimeterDefense: 1.1, ballHandle: 1.05 },
+            SF: { finishing: 1.1, threePoint: 1.1, perimeterDefense: 1.1, defensiveIQ: 1.05, speed: 1.05, basketballIQ: 1.05 },
+            PF: { strength: 1.15, interiorDefense: 1.15, defensiveRebound: 1.15, finishing: 1.1, block: 1.1, vertical: 1.05 },
+            C: { interiorDefense: 1.3, block: 1.25, defensiveRebound: 1.25, offensiveRebound: 1.15, finishing: 1.15, strength: 1.1 }
+        };
+
+        const nbaTeams = [
+            ['ATL', 'Atlanta Hawks', 'East'], ['BOS', 'Boston Celtics', 'East'], ['BKN', 'Brooklyn Nets', 'East'], ['CHA', 'Charlotte Hornets', 'East'], ['CHI', 'Chicago Bulls', 'East'],
+            ['CLE', 'Cleveland Cavaliers', 'East'], ['DET', 'Detroit Pistons', 'East'], ['IND', 'Indiana Pacers', 'East'], ['MIA', 'Miami Heat', 'East'], ['MIL', 'Milwaukee Bucks', 'East'],
+            ['NYK', 'New York Knicks', 'East'], ['ORL', 'Orlando Magic', 'East'], ['PHI', 'Philadelphia 76ers', 'East'], ['TOR', 'Toronto Raptors', 'East'], ['WAS', 'Washington Wizards', 'East'],
+            ['DAL', 'Dallas Mavericks', 'West'], ['DEN', 'Denver Nuggets', 'West'], ['GSW', 'Golden State Warriors', 'West'], ['HOU', 'Houston Rockets', 'West'], ['LAC', 'LA Clippers', 'West'],
+            ['LAL', 'Los Angeles Lakers', 'West'], ['MEM', 'Memphis Grizzlies', 'West'], ['MIN', 'Minnesota Timberwolves', 'West'], ['NOP', 'New Orleans Pelicans', 'West'], ['OKC', 'Oklahoma City Thunder', 'West'],
+            ['PHX', 'Phoenix Suns', 'West'], ['POR', 'Portland Trail Blazers', 'West'], ['SAC', 'Sacramento Kings', 'West'], ['SAS', 'San Antonio Spurs', 'West'], ['UTA', 'Utah Jazz', 'West']
+        ];
+
+        const demoAges = {
+            'Shai Gilgeous-Alexander': 27, 'Jalen Williams': 24, 'Chet Holmgren': 23, 'Stephen Curry': 37, 'Jimmy Butler': 36, 'LeBron James': 40, 'Luka Dončić': 27,
+            'Anthony Davis': 33, 'Jayson Tatum': 28, 'Jaylen Brown': 29, 'Nikola Jokić': 30, 'Jamal Murray': 29, 'Giannis Antetokounmpo': 31, 'Damian Lillard': 35,
+            'Kevin Durant': 37, 'Devin Booker': 29, 'Anthony Edwards': 24, 'Rudy Gobert': 33, 'Joel Embiid': 32, 'Tyrese Maxey': 25, 'Donovan Mitchell': 29,
+            'Evan Mobley': 24, 'Victor Wembanyama': 22, 'De’Aaron Fox': 28, 'Trae Young': 27, 'Paolo Banchero': 23, 'Tyrese Haliburton': 26, 'LaMelo Ball': 24,
+            'Brandon Ingram': 28, 'Zion Williamson': 25, 'Prime lebron': 27
+        };
+
+        const estStl = pos => +((['PG', 'SG'].includes(pos) ? 1.1 : pos === 'SF' ? .9 : .7) + rnd() * .5).toFixed(1);
+        const estBlk = (pos, reb) => +((pos === 'C' ? .8 + reb * .05 : pos === 'PF' ? .4 + reb * .03 : .2 + rnd() * .3) + rnd() * .3).toFixed(1);
+
+        const demoPlayers = [
+            ['Shai Gilgeous-Alexander', 'OKC', 'PG', 31.4, 4.5, 6.2, .638, .375, 34.2], ['Jalen Williams', 'OKC', 'SG', 21.6, 5.3, 5.1, .602, .365, 32.1], ['Chet Holmgren', 'OKC', 'C', 17.8, 8.7, 2.1, .625, .372, 29.4], ['Stephen Curry', 'GSW', 'PG', 23.4, 4.5, 6.1, .611, .397, 30.2], ['Jimmy Butler', 'GSW', 'SF', 17.5, 5.4, 5.2, .598, .315, 30.1], ['LeBron James', 'LAL', 'SF', 24.4, 7.8, 8.2, .622, .367, 35.1], ['Luka Dončić', 'LAL', 'PG', 28.2, 8.1, 8.7, .608, .365, 35.6], ['Anthony Davis', 'DAL', 'C', 24.7, 11.6, 3.5, .624, .270, 34.0], ['Jayson Tatum', 'BOS', 'SF', 26.8, 8.7, 5.4, .601, .376, 35.8], ['Jaylen Brown', 'BOS', 'SG', 23.0, 5.8, 3.6, .574, .354, 34.1], ['Nikola Jokić', 'DEN', 'C', 29.6, 12.7, 10.2, .668, .421, 36.3], ['Jamal Murray', 'DEN', 'PG', 21.2, 4.1, 6.3, .583, .398, 34.0], ['Giannis Antetokounmpo', 'MIL', 'PF', 30.4, 11.5, 6.5, .648, .222, 35.0], ['Damian Lillard', 'MIL', 'PG', 24.3, 4.4, 7.0, .591, .375, 35.2], ['Kevin Durant', 'PHX', 'PF', 27.1, 6.6, 5.0, .641, .417, 36.0], ['Devin Booker', 'PHX', 'SG', 27.8, 4.5, 6.9, .596, .365, 36.2], ['Anthony Edwards', 'MIN', 'SG', 27.6, 5.7, 4.5, .577, .395, 36.1], ['Rudy Gobert', 'MIN', 'C', 14.0, 12.9, 1.4, .675, 0, 30.5], ['Joel Embiid', 'PHI', 'C', 30.1, 11.2, 5.6, .626, .337, 33.4], ['Tyrese Maxey', 'PHI', 'PG', 26.0, 3.7, 6.8, .590, .373, 37.0], ['Donovan Mitchell', 'CLE', 'SG', 26.6, 4.8, 5.2, .594, .370, 34.0], ['Evan Mobley', 'CLE', 'PF', 18.6, 9.3, 3.2, .620, .370, 30.8], ['Victor Wembanyama', 'SAS', 'C', 24.5, 11.0, 3.8, .584, .352, 31.0], ['De’Aaron Fox', 'SAS', 'PG', 25.2, 4.3, 6.1, .578, .369, 34.0], ['Trae Young', 'ATL', 'PG', 25.7, 3.1, 10.8, .582, .370, 36.0], ['Paolo Banchero', 'ORL', 'PF', 25.0, 7.8, 4.9, .560, .335, 35.0], ['Tyrese Haliburton', 'IND', 'PG', 20.1, 3.9, 10.9, .623, .386, 33.5], ['LaMelo Ball', 'CHA', 'PG', 25.2, 5.0, 8.1, .564, .364, 32.0], ['Brandon Ingram', 'TOR', 'SF', 22.2, 5.6, 5.2, .575, .365, 33.0],
+            ['Zion Williamson', 'NOP', 'PF', 24.6, 6.6, 5.2, .640, .333, 31.0],
+            ['Shaun Détré', 'TOR', 'SF', 32.5, 4.6, 10.8, .700, .500, 32.0],
+            ['Félix Dompierre', 'SAS', 'SG', 27.2, 2.2, 10.4, .500, .350, 28.0],
+            ['Léandre Landry', 'LAL', 'PF', 35.3, 8.5, 4.4, .300, .300, 42.0],
+            ['William Champagne', 'OKC', 'C', 25.2, 12.6, 6.5, .300, .170, 28.0],
+            ['Marshall', 'SAS', 'PG', 14.2, 0.8, 14.5, .180, .220, 14.0],
+            ['Yrone Détré', 'GSW', 'PG', 31.3, 6.7, 11.9, .500, .500, 36.0],
+            ['Prime lebron', 'CLE', 'SF', 30.0, 8.0, 8.0, .680, .400, 36.0],
+        ].map((x, i) => ({ id: i + 1, name: x[0], team: x[1], pos: x[2], pts: x[3], reb: x[4], ast: x[5], ts: x[6], three: x[7], mpg: x[8], season: '2025-26', source: 'DEMO — valeurs illustratives, non vérifiées' }));
+
+        function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
+        function parseRate(v) { let n = Number(v) || 0; return n > 1 ? n / 100 : n }
+        function defaultHeight(pos, name = '') {
+            const base = { PG: 188, SG: 195, SF: 202, PF: 208, C: 214 }[pos] || 198;
+            const hash = [...String(name)].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7);
+            return base + hash % 9 - 4;
+        }
+        function getHeight(raw, pos, name) {
+            let cm = Number(raw.heightCm ?? raw.height_cm ?? raw.height);
+            if (raw.heightFeet != null || raw.heightInches != null) cm = ((Number(raw.heightFeet) || 0) * 12 + (Number(raw.heightInches) || 0)) * 2.54;
+            if (typeof raw.height === 'string') {
+                const match = raw.height.match(/(\d+)\s*['′]\s*(\d+)?/);
+                if (match) cm = ((Number(match[1]) || 0) * 12 + (Number(match[2]) || 0)) * 2.54;
+            }
+            return Math.round(clamp(Number.isFinite(cm) && cm > 0 ? cm : defaultHeight(pos, name), 150, 240));
+        }
+        function defaultAttributes(p, height) {
+            const pos = positions.includes(p.pos) ? p.pos : 'SF';
+            const scoring = clamp(48 + p.pts * 1.15, 42, 94);
+            const shooting = clamp(35 + p.three * 100 * .95, 35, 96);
+            const creation = clamp(45 + p.ast * 3.2 + p.pts * .25, 40, 94);
+            const defense = clamp(48 + p.stl * 7 + p.blk * 5 + p.reb * .45, 40, 94);
+            const size = clamp(70 + (height - 198) * .75, 48, 94);
+            const strength = clamp(size + (pos === 'C' || pos === 'PF' ? 8 : -7), 35, 97);
+            return {
+                finishing: clamp(scoring + (p.reb > 7 ? 8 : 0), 35, 98),
+                layup: clamp(scoring + (['PG', 'SG'].includes(pos) ? 5 : -2), 35, 98),
+                dunk: clamp(42 + (height - 190) * .6 + (pos === 'C' || pos === 'PF' ? 14 : 0), 25, 97),
+                closeShot: clamp(scoring + (pos === 'C' || pos === 'PF' ? 7 : -4), 35, 98),
+                midRange: clamp(44 + p.pts * .9 + p.ts * 18, 35, 96),
+                threePoint: shooting,
+                freeThrow: clamp(50 + p.ts * 35 + p.three * 14, 38, 94),
+                shotIQ: clamp(48 + p.ts * 42 + p.pts * .3, 40, 96),
+                ballHandle: clamp(48 + p.ast * 2.6 + (['PG', 'SG'].includes(pos) ? 9 : 0), 35, 97),
+                passing: clamp(46 + p.ast * 3.3, 35, 98),
+                playmaking: creation,
+                offensiveIQ: clamp(50 + p.ast * 1.5 + p.ts * 30, 40, 97),
+                perimeterDefense: clamp(defense + (['PG', 'SG', 'SF'].includes(pos) ? 4 : -8), 30, 97),
+                interiorDefense: clamp(defense + (pos === 'C' || pos === 'PF' ? 9 : -10), 25, 98),
+                steal: clamp(40 + p.stl * 18, 30, 98),
+                block: clamp(35 + p.blk * 18 + Math.max(0, height - 200) * .35, 25, 99),
+                defensiveIQ: clamp(defense, 35, 97),
+                defensiveRebound: clamp(44 + p.reb * 3.2 + (pos === 'C' || pos === 'PF' ? 7 : 0), 35, 98),
+                offensiveRebound: clamp(42 + p.reb * 2.8 + (pos === 'C' || pos === 'PF' ? 8 : 0), 30, 98),
+                speed: clamp(88 - Math.max(0, height - 190) * .55 + (['PG', 'SG'].includes(pos) ? 4 : 0), 42, 98),
+                acceleration: clamp(86 - Math.max(0, height - 190) * .48 + (['PG', 'SG'].includes(pos) ? 5 : 0), 40, 98),
+                agility: clamp(84 - Math.max(0, height - 190) * .43 + (['PG', 'SG'].includes(pos) ? 4 : 0), 40, 98),
+                strength,
+                vertical: clamp(55 + (height - 190) * .4 + (pos === 'PF' || pos === 'C' ? 5 : 0), 35, 98),
+                stamina: clamp(68 + p.mpg * .45, 45, 96),
+                durability: clamp(74 - Math.max(0, (p.age || 25) - 30) * 1.4, 25, 94),
+                consistency: clamp(76 - (p.age < 22 ? 8 : 0), 45, 94),
+                clutch: clamp(55 + p.pts * .55, 40, 96),
+                potential: clamp((p.age <= 22 ? 83 : p.age <= 26 ? 76 : 66) + Math.max(0, 25 - (p.age || 25)) * .7, 45, 98),
+                workEthic: 68,
+                basketballIQ: clamp(50 + p.ast * 1.5 + p.ts * 30, 40, 97)
+            };
+        }
+        function overallRating(player) {
+            const weights = positionWeights[player.pos] || positionWeights.SF;
+            let total = 0, weightTotal = 0;
+            attributeNames.forEach(([key]) => {
+                const weight = weights[key] || 1;
+                total += clamp(Number(player.attributes?.[key]) || 50, 0, 100) * weight;
+                weightTotal += weight;
+            });
+            return Math.round(total / weightTotal);
+        }
+        function normalizeAttributes(raw, player, height) {
+            const baseline = defaultAttributes(player, height);
+            const existing = raw.attributes && typeof raw.attributes === 'object' ? raw.attributes : {};
+            attributeNames.forEach(([key]) => {
+                const direct = raw[key];
+                const value = Number(existing[key] ?? direct);
+                baseline[key] = Number.isFinite(value) ? Math.round(clamp(value, 0, 100)) : baseline[key];
+            });
+            return baseline;
+        }
+        function normalize(raw) {
+            const ids = new Set();
+            let generatedId = Math.max(1000, ...raw.map((p, i) => Number(p.id) || i + 1)) + 1;
+            return raw.map((p, i) => {
+                const name = p.name ?? p.player ?? 'Inconnu', pos = p.pos ?? p.position ?? '—', reb = +(p.reb ?? p.rebounds ?? 0);
+                const candidateId = Number(p.id ?? i + 1);
+                const player = {
+                    id: Number.isFinite(candidateId) && candidateId > 0 ? candidateId : i + 1, name, team: p.team ?? p.teamAbbreviation ?? 'UNK', pos,
+                    pts: +(p.pts ?? p.points ?? 0), reb, ast: +(p.ast ?? p.assists ?? 0),
+                    ts: parseRate(p.ts ?? p.ts_pct ?? p.trueShootingPct ?? 0.56), three: parseRate(p.three ?? p.fg3_pct ?? p.threePointPct ?? 0.35),
+                    mpg: +(p.mpg ?? p.minutes ?? 0),
+                    stl: +(p.stl ?? p.steals ?? estStl(pos)), blk: +(p.blk ?? p.blocks ?? estBlk(pos, reb)),
+                    age: +(p.age ?? demoAges[name] ?? 25),
+                    season: p.season ?? '2025-26', source: p.source ?? 'Import utilisateur', previousTeam: p.previousTeam,
+                    trophies: p.trophies ?? [], history: p.history ?? [], careerGames: p.careerGames ?? [], rookie: !!p.rookie
+                };
+                if (ids.has(player.id)) player.id = generatedId++;
+                ids.add(player.id);
+                player.height = getHeight(p, pos, name);
+                player.attributes = normalizeAttributes(p, player, player.height);
+                return player;
+            });
+        }
+        function resetLeague() {
+            seasonYear = 2025; phase = 'idle'; seasonResults = []; resultsLabel = ''; playoffs = null; seasonLines = new Map();
+            history = []; retired = []; lastDraft = null; lastAwards = null; lastOffseason = null; seasonStatHistory = []; win = 0; lose = 0;
+            customTeams = customTeams.map(t => ({ ...t, playerIds: t.playerIds.filter(id => players.some(p => p.id === id)) }));
+        }
+        function normalizedSeasonLine(row) {
+            const gp = Number(row.gp) || 0;
+            return {
+                ...row, gp, missed: row.missed ?? Math.max(0, 82 - gp),
+                pts: Number(row.pts) || 0, reb: Number(row.reb) || 0, ast: Number(row.ast) || 0,
+                stl: Number(row.stl) || 0, blk: Number(row.blk) || 0, fg: Number(row.fg) || 0,
+                three: Number(row.three) || 0, ft: Number(row.ft) || 0, ts: Number(row.ts) || 0,
+                tov: Number(row.tov) || 0, plusMinus: Number(row.plusMinus) || 0,
+                mpg: Number(row.mpg) || 0, fgm: Number(row.fgm) || 0, fga: Number(row.fga) || 0,
+                threeMade: Number(row.threeMade) || 0, threeAttempts: Number(row.threeAttempts) || 0,
+                ftMade: Number(row.ftMade) || 0, fta: Number(row.fta) || 0
+            };
+        }
+        function load(list, status, savedState = null) {
+            if (!Array.isArray(list)) throw new Error('La base de joueurs doit être un tableau.');
+            players = normalize(list);
+            nextPlayerId = Math.max(1000, ...players.map(p => (Number(p.id) || 0) + 1));
+            starters = [null, null, null, null, null]; selectedTeam = null; careerGame = null; followedPlayerId = null;
+            customTeams = [];
+            resetLeague();
+            if (savedState) {
+                seasonYear = Number(savedState.seasonYear) || 2025;
+                phase = ['idle', 'regular', 'playoffs'].includes(savedState.phase) ? savedState.phase : 'idle';
+                resultsLabel = savedState.resultsLabel || '';
+                followedPlayerId = savedState.followedPlayerId || null;
+                customTeams = (savedState.customTeams || []).map(team => ({ ...team, playerIds: [...new Set((team.playerIds || []).map(id => Number.isFinite(Number(id)) ? Number(id) : id))] }));
+                nextCustomTeamId = Math.max(1, Number(savedState.nextCustomTeamId) || 1, ...customTeams.map(team => (Number(team.id) || 0) + 1));
+                const activeIds = new Set(players.map(player => String(player.id)));
+                retired = (savedState.retired || []).map((old, i) => {
+                    const id = old.id ?? `retired-${i + 1}`;
+                    if (activeIds.has(String(id))) return null;
+                    const migrated = normalize([{ ...old, id, pos: old.pos || 'SF', height: old.height || defaultHeight(old.pos || 'SF', old.name) }])[0];
+                    return { ...migrated, ...old, id, height: migrated.height, attributes: migrated.attributes, history: (old.history || []).map(normalizedSeasonLine), careerGames: old.careerGames || [], trophies: old.trophies || [] };
+                }).filter(Boolean);
+                nextPlayerId = Math.max(nextPlayerId, Number(savedState.nextPlayerId) || 0, ...retired.map(p => (Number(p.id) || 0) + 1));
+                seasonResults = (savedState.seasonResults || []).map(team => {
+                    const played = Number(team.wins || 0) + Number(team.losses || 0);
+                    const games = played || 82;
+                    const ppg = Number(team.ppg) || Number(team.points || 0) / games;
+                    const oppg = Number(team.oppg) || Number(team.oppPoints || 0) / games;
+                    return {
+                        ...team, wins: Number(team.wins) || 0, losses: Number(team.losses) || 0,
+                        winPct: Number.isFinite(Number(team.winPct)) ? Number(team.winPct) : Number(team.wins || 0) / games,
+                        ppg, oppg, diff: Number.isFinite(Number(team.diff)) ? Number(team.diff) : ppg - oppg,
+                        apg: Number(team.apg) || Number(team.assists || 0) / games,
+                        rpg: Number(team.rpg) || Number(team.rebounds || 0) / games,
+                        spg: Number(team.spg) || Number(team.steals || 0) / games,
+                        bpg: Number(team.bpg) || Number(team.blocks || 0) / games,
+                        tov: Number(team.tov) || Number(team.turnovers || 0) / games,
+                        strength: Number(team.strength) || .5,
+                        conference: team.conference || 'East', name: team.name || team.code || 'Équipe'
+                    };
+                });
+                seasonStatHistory = (savedState.seasonStatHistory || [...players, ...retired].flatMap(player => (player.history || []).map(line => ({ season: line.season, name: player.name, ...line })))).map(normalizedSeasonLine);
+                history = savedState.history || [];
+                lastAwards = savedState.lastAwards || null;
+                lastOffseason = savedState.lastOffseason || null;
+                const byCode = new Map(seasonResults.map(team => [team.code, team]));
+                const decodeSeries = series => {
+                    const a = byCode.get(series.aCode), b = byCode.get(series.bCode);
+                    return a && b ? { ...series, a, b, winner: byCode.get(series.winnerCode), loser: byCode.get(series.loserCode) } : null;
+                };
+                if (savedState.playoffs && Array.isArray(savedState.playoffs.rounds)) {
+                    const rounds = savedState.playoffs.rounds.map(round => ({ ...round, series: round.series.map(decodeSeries).filter(Boolean) }));
+                    const finalSaved = savedState.playoffs.final;
+                    const final = rounds[3]?.series.find(series => series.a.code === finalSaved?.aCode && series.b.code === finalSaved?.bCode);
+                    playoffs = { rounds, final, champion: byCode.get(savedState.playoffs.championCode), runnerUp: byCode.get(savedState.playoffs.runnerUpCode) };
+                    if (!final || !playoffs.champion || !playoffs.runnerUp) playoffs = null;
+                } else playoffs = null;
+                seasonLines = new Map(Object.entries(savedState.seasonLines || {}).map(([id, line]) => [Number.isFinite(Number(id)) ? Number(id) : id, normalizedSeasonLine(line)]));
+                const draft = savedState.lastDraft;
+                lastDraft = draft ? { season: draft.season, rows: (draft.rows || []).map(row => ({ ...row, player: players.find(player => String(player.id) === String(row.playerId)) })).filter(row => row.player) } : null;
+                seasonResults.forEach(team => { team.seed = team.seed ?? null; });
+            }
+            starters = [null, null, null, null, null]; selectedTeam = null;
+            renderAll(); $('dataStatus').textContent = status;
+        }
+        function exportState() {
+            const encodeSeries = series => ({ aCode: series.a.code, bCode: series.b.code, wa: series.wa, wb: series.wb, winnerCode: series.winner.code, loserCode: series.loser.code, conf: series.conf });
+            const data = {
+                format: 'nba-sim-lab-save', version: 2, seasonYear, phase, resultsLabel, nextPlayerId, followedPlayerId, players,
+                customTeams, nextCustomTeamId, history, retired, lastAwards, lastOffseason,
+                lastDraft: lastDraft ? { season: lastDraft.season, rows: lastDraft.rows.map(row => ({ ...row, player: undefined, playerId: row.player.id })) } : null,
+                seasonResults, seasonLines: Object.fromEntries(seasonLines), seasonStatHistory,
+                playoffs: playoffs ? {
+                    rounds: playoffs.rounds.map(round => ({ name: round.name, series: round.series.map(encodeSeries) })),
+                    championCode: playoffs.champion.code, runnerUpCode: playoffs.runnerUp.code, final: encodeSeries(playoffs.final)
+                } : null
+            };
+            download(JSON.stringify(data, null, 2), `nba_sim_lab_save_${seasonLabel(seasonYear)}.json`, 'application/json;charset=utf-8');
+        }
+
+        /* ---------- Force d’équipe (commune NBA / personnalisée) ---------- */
+        function strengthOf(list) {
+            const top = [...list].sort((a, b) => b.pts - a.pts).slice(0, 5);
+            while (top.length < 5) top.push({ pts: 11, reb: 4, ast: 3, ts: .55 });
+            const avg = k => top.reduce((s, p) => s + p[k], 0) / 5;
+            return clamp(.47 + (avg('pts') - 12) * .008 + (avg('ast') - 3) * .006 + (avg('reb') - 4.5) * .004 + (avg('ts') - .55) * .35, .28, .80);
+        }
+        function rosterOf(row) {
+            if (row.custom) { const t = customTeams.find(x => x.code === row.code); return t ? t.playerIds.map(id => players.find(p => p.id === id)).filter(Boolean) : []; }
+            return players.filter(p => p.team === row.code);
+        }
+        function customTeamStrength(team) { return strengthOf(team.playerIds.map(id => players.find(p => p.id === id)).filter(Boolean)); }
+
+        /* ---------- Section 02 : cinq starters + roue + équipe perso ---------- */
+        function setTeamStatus(t) { $('customTeamStatus').textContent = t }
+        function renderSlots() {
+            $('slots').innerHTML = starters.map((p, i) => `<div class="slot ${p ? 'full' : ''}"><div class="pos">${positions[i]}</div>${p ? `<strong>${esc(p.name)}</strong><small>${esc(p.team)} · ${p.pts.toFixed(1)} PTS</small><small>TS ${(p.ts * 100).toFixed(1)}% · ${p.age} ans</small><button class="btn" onclick="removeStarter(${i})">Retirer</button>` : `<strong class="muted">Spot libre</strong><small>Utilise la roue ou la liste</small>`}</div>`).join('');
+        }
+        function removeStarter(i) { starters[i] = null; renderSlots(); renderPicks() }
+        function addStarter(p) {
+            if (!p) return;
+            if (starters.some(s => s && s.id === p.id)) { setTeamStatus(`${p.name} est déjà dans ton cinq.`); return; }
+            const i = starters.findIndex(x => !x);
+            if (i < 0) { setTeamStatus('Ton cinq est complet : retire un joueur d’abord.'); return; }
+            starters[i] = p; renderSlots(); renderPicks(); setTeamStatus(`${p.name} ajouté au poste ${positions[i]}.`);
+        }
+        function addById(id) { addStarter(players.find(p => p.id === id)) }
+        function renderPicks() {
+            const q = $('pickSearch').value.trim().toLowerCase();
+            const source = q ? players : selectedTeam ? players.filter(p => p.team === selectedTeam) : players;
+            const arr = source
+                .filter(p => !starters.some(s => s && s.id === p.id))
+                .filter(p => !q || `${p.name} ${p.team} ${p.pos}`.toLowerCase().includes(q))
+                .sort((a, b) => b.pts - a.pts);
+            $('teamPicks').innerHTML = arr.map(p => `<div class="pick"><div><b>${esc(p.name)}</b><small>${esc(p.pos)} · ${p.age} ans · ${esc(p.team)} · ${p.pts.toFixed(1)} PTS · ${p.reb.toFixed(1)} REB · ${p.ast.toFixed(1)} AST</small></div><button class="btn" onclick="addById(${p.id})">+ Ajouter</button></div>`).join('') || '<p class="muted">Aucun joueur disponible pour cette recherche.</p>';
+        }
+        function spinWheel(el, label) { spinTurns += 5 + Math.floor(rnd() * 4); el.style.transform = `rotate(${spinTurns * 360 + rnd() * 300}deg)`; if (label) $('wheelLabel').textContent = label }
+        $('spin').onclick = () => {
+            const teams = [...new Set(players.map(p => p.team))]; if (!teams.length) return;
+            const team = teams[Math.floor(rnd() * teams.length)];
+            spinWheel($('wheel'), team); selectedTeam = team;
+            $('teamResult').textContent = team; $('teamHint').textContent = players.filter(p => p.team === team).length + ' joueur(s) — clique « + Ajouter »';
+            renderPicks();
+        };
+        $('autoFill').onclick = () => {
+            const empty = starters.map((s, i) => s ? -1 : i).filter(i => i >= 0);
+            if (!empty.length) { setTeamStatus('Ton cinq est déjà complet.'); return; }
+            const pool = players.filter(p => !starters.some(s => s && s.id === p.id));
+            if (pool.length < empty.length) { setTeamStatus('Pas assez de joueurs en base.'); return; }
+            spinWheel($('wheel'), '🎯');
+            empty.forEach(i => { const k = Math.floor(rnd() * pool.length); starters[i] = pool.splice(k, 1)[0]; });
+            renderSlots(); renderPicks(); setTeamStatus('La roue a rempli les spots vides.');
+        };
+        $('pickSearch').oninput = renderPicks;
+
+        function refreshCustomTeamEditor() {
+            const selected = $('customTeamSelect').value;
+            $('customTeamSelect').innerHTML = '<option value="">— Nouvelle équipe —</option>' + customTeams.map(t => `<option value="${t.id}">${esc(t.name)} (${esc(t.code)})</option>`).join('');
+            if (customTeams.some(t => String(t.id) === selected)) $('customTeamSelect').value = selected;
+            $('customTeamsTable').innerHTML = customTeams.map(t => {
+                const roster = t.playerIds.map(id => players.find(p => p.id === id)).filter(Boolean);
+                return `<tr><td><b>${esc(t.name)}</b><br><span class="muted">${esc(t.code)}</span></td><td>${t.conference === 'East' ? 'Est' : 'Ouest'}</td><td>${roster.map(p => esc(p.name)).join(', ') || 'Aucun joueur'}</td><td>${(customTeamStrength(t) * 100).toFixed(1)}</td></tr>`;
+            }).join('');
+        }
+        function teamFormValues() {
+            const name = $('customTeamName').value.trim();
+            if (!name) { alert('Entre un nom pour ton équipe.'); return null; }
+            if (starters.some(s => !s)) { alert('Remplis les cinq spots avant de créer l’équipe.'); return null; }
+            let code = $('customTeamCode').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+            if (!code) code = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 3) || `CUS${nextCustomTeamId}`;
+            return { name, code, conference: $('customTeamConference').value, playerIds: starters.map(s => s.id) };
+        }
+        function validateCustomRoster(ids, teamId = null) {
+            const duplicate = customTeams.find(t => t.id !== teamId && t.playerIds.some(id => ids.includes(id)));
+            if (!duplicate) return true;
+            alert(`Au moins un joueur appartient déjà à ${duplicate.name}. Un joueur ne peut être actif que dans une seule équipe personnalisée.`);
+            return false;
+        }
+        function assignCustomRoster(team, values) {
+            const oldCode = team.code;
+            const nextIds = new Set(values.playerIds);
+            team.playerIds.filter(id => !nextIds.has(id)).forEach(id => {
+                const player = players.find(p => p.id === id);
+                if (player && player.team === oldCode) {
+                    player.team = player.previousTeam || 'FA';
+                    delete player.previousTeam;
+                }
+            });
+            values.playerIds.forEach(id => {
+                const player = players.find(p => p.id === id);
+                if (!player) return;
+                if (player.team !== oldCode) player.previousTeam = player.team;
+                player.team = values.code;
+            });
+            Object.assign(team, values);
+        }
+        function releaseCustomRoster(team) {
+            team.playerIds.forEach(id => {
+                const player = players.find(p => p.id === id);
+                if (!player || player.team !== team.code) return;
+                player.team = player.previousTeam || 'FA';
+                delete player.previousTeam;
+            });
+        }
+        function movePlayerToTeam(player, teamCode) {
+            const destination = customTeams.find(team => team.code === teamCode);
+            customTeams.forEach(team => {
+                if (team !== destination) team.playerIds = team.playerIds.filter(id => id !== player.id);
+            });
+            if (destination) {
+                if (player.team !== teamCode && !player.previousTeam) player.previousTeam = player.team;
+                player.team = teamCode;
+                if (!destination.playerIds.includes(player.id)) destination.playerIds.push(player.id);
+            } else {
+                player.team = teamCode;
+                delete player.previousTeam;
+            }
+        }
+        function clearTeamForm() {
+            $('customTeamName').value = ''; $('customTeamCode').value = ''; $('customTeamSelect').value = '';
+            starters = [null, null, null, null, null]; renderSlots(); renderPicks();
+        }
+        $('createCustomTeam').onclick = () => {
+            const v = teamFormValues(); if (!v) return;
+            if (nbaTeams.some(t => t[0] === v.code) || customTeams.some(t => t.code === v.code)) { alert('Ce code est déjà utilisé. Choisis-en un autre.'); return; }
+            if (customTeams.some(t => t.name.toLowerCase() === v.name.toLowerCase())) { alert('Une équipe porte déjà ce nom.'); return; }
+            if (!validateCustomRoster(v.playerIds)) return;
+            const team = { ...v, id: nextCustomTeamId++ };
+            customTeams.push(team); assignCustomRoster(team, v); render();
+            setTeamStatus(`${v.name} a été créée! Elle jouera dans le classement à la prochaine saison simulée.`);
+            clearTeamForm();
+        };
+        $('updateCustomTeam').onclick = () => {
+            const id = Number($('customTeamSelect').value), team = customTeams.find(t => t.id === id);
+            if (!team) { alert('Sélectionne une de tes équipes dans la liste.'); return; }
+            const v = teamFormValues(); if (!v) return;
+            if (nbaTeams.some(t => t[0] === v.code) || customTeams.some(t => t.id !== id && t.code === v.code)) { alert('Ce code est déjà utilisé.'); return; }
+            if (customTeams.some(t => t.id !== id && t.name.toLowerCase() === v.name.toLowerCase())) { alert('Une équipe porte déjà ce nom.'); return; }
+            if (!validateCustomRoster(v.playerIds, id)) return;
+            assignCustomRoster(team, v); render(); $('customTeamSelect').value = String(id);
+            setTeamStatus(`${team.name} modifiée.`);
+        };
+        $('deleteCustomTeam').onclick = () => {
+            const id = Number($('customTeamSelect').value), team = customTeams.find(t => t.id === id);
+            if (!team) { alert('Sélectionne une de tes équipes dans la liste.'); return; }
+            if (!confirm(`Supprimer l’équipe ${team.name} ?`)) return;
+            releaseCustomRoster(team); customTeams = customTeams.filter(t => t.id !== id); render();
+            setTeamStatus(`${team.name} supprimée.`); clearTeamForm();
+        };
+        $('clearCustomTeam').onclick = () => { clearTeamForm(); setTeamStatus('Formulaire vidé.'); };
+        $('customTeamSelect').onchange = () => {
+            const t = customTeams.find(x => x.id === Number($('customTeamSelect').value)); if (!t) return;
+            $('customTeamName').value = t.name; $('customTeamCode').value = t.code; $('customTeamConference').value = t.conference;
+            starters = [0, 1, 2, 3, 4].map(i => players.find(p => p.id === t.playerIds[i]) || null); renderSlots();
+            renderPicks();
+            setTeamStatus(`${t.name} chargée dans ton cinq.`);
+        };
+
+        /* ---------- Base de joueurs ---------- */
+        function trophySummary(p) {
+            const c = {}; (p.trophies || []).forEach(t => c[t.k] = (c[t.k] || 0) + 1);
+            return Object.entries(c).map(([k, v]) => `<span class="pill gold">🏆 ${esc(k)}${v > 1 ? '×' + v : ''}</span>`).join('');
+        }
+        function renderTable() {
+            const q = $('search').value.toLowerCase(), sort = $('sort').value;
+            const arr = players.filter(p => (p.name + ' ' + p.team + ' ' + p.pos).toLowerCase().includes(q)).sort((a, b) => b[sort] - a[sort]);
+            $('playerTable').innerHTML = arr.map(p => `<tr><td><b>${esc(p.name)}</b>${p.rookie ? ' <span class="pill">Recrue</span>' : ''}<br><span class="muted">${esc(p.source)}</span></td><td>${esc(p.team)}</td><td>${esc(p.pos)}</td><td>${p.height} cm</td><td><span class="pill gold">${overallRating(p)}</span></td><td>${p.age}</td><td>${p.pts.toFixed(1)}</td><td>${p.reb.toFixed(1)}</td><td>${p.ast.toFixed(1)}</td><td>${p.stl.toFixed(1)}</td><td>${p.blk.toFixed(1)}</td><td>${(p.ts * 100).toFixed(1)}%</td><td>${(p.three * 100).toFixed(1)}%</td><td>${p.mpg.toFixed(1)}</td><td>${trophySummary(p)}</td></tr>`).join('');
+        }
+        function renderFollowSelector() {
+            const active = [...players].sort((a, b) => a.name.localeCompare(b.name));
+            const retiredPlayers = [...retired].sort((a, b) => a.name.localeCompare(b.name));
+            let value = followedPlayerId == null ? '' : String(followedPlayerId);
+            if (value.startsWith('p:') && !active.some(p => String(p.id) === value.slice(2)) && retiredPlayers.some(p => String(p.id) === value.slice(2))) {
+                value = `r:${value.slice(2)}`;
+                followedPlayerId = value;
+            }
+            $('followPlayer').innerHTML = '<option value="">— Choisir un joueur —</option>' +
+                `<optgroup label="Joueurs actifs">${active.map(p => `<option value="p:${esc(p.id)}">${esc(p.name)} — ${esc(p.team)} (${p.pos})</option>`).join('')}</optgroup>` +
+                (retiredPlayers.length ? `<optgroup label="Retraités">${retiredPlayers.map(p => `<option value="r:${esc(p.id)}">${esc(p.name)} — retraité ${esc(p.retiredIn || '')}</option>`).join('')}</optgroup>` : '');
+            if ([...active, ...retiredPlayers].some(p => `${players.includes(p) ? 'p' : 'r'}:${p.id}` === value)) $('followPlayer').value = value;
+        }
+        function selectedCareerPlayer() {
+            const value = $('followPlayer').value;
+            if (value.startsWith('r:')) return { player: retired.find(p => String(p.id) === value.slice(2)), isRetired: true };
+            if (value.startsWith('p:')) return { player: players.find(p => String(p.id) === value.slice(2)), isRetired: false };
+            return { player: null, isRetired: false };
+        }
+        function renderCareerProfile() {
+            const { player, isRetired } = selectedCareerPlayer();
+            const box = $('followProfile');
+            if (!player) {
+                box.className = 'player-card muted';
+                box.innerHTML = 'Choisis un joueur pour afficher sa taille, sa note, ses attributs et sa carrière.';
+                $('followHistory').innerHTML = '<tr><td colspan="11" class="muted">Aucun joueur sélectionné.</td></tr>';
+                $('startCareerGame').disabled = true;
+                return;
+            }
+            const attributes = player.attributes || defaultAttributes(player, player.height || defaultHeight(player.pos, player.name));
+            const groups = Object.entries(attributeGroups).map(([group, entries]) => `<div class="attribute-group"><h3>${esc(group)}</h3><div class="attribute-bars">${entries.map(([key, label]) => `<div class="attribute-bar"><span>${esc(label)}</span><b>${Math.round(attributes[key] || 0)}</b><progress max="100" value="${Math.round(attributes[key] || 0)}"></progress></div>`).join('')}</div></div>`).join('');
+            box.className = 'player-card';
+            box.innerHTML = `<div class="top"><div><h3 style="margin-top:0">${esc(player.name)}${isRetired ? ' · Retraité' : ''}</h3><span class="muted">${esc(player.team)} · ${esc(player.pos)} · ${player.height || '—'} cm · ${player.age} ans${isRetired ? ` · retraite ${esc(player.retiredIn || '')}` : ''}</span></div><div class="pill gold">GÉN ${overallRating({ ...player, attributes })}</div></div><div class="attribute-groups">${groups}</div>`;
+            const historyRows = player.history || [];
+            $('followHistory').innerHTML = [...historyRows].reverse().map(line => {
+                const awards = (player.trophies || []).filter(t => t.s === line.season).map(t => `<span class="pill gold">${esc(t.k)}</span>`).join('');
+                return `<tr><td>${esc(line.season || '—')}</td><td>${esc(line.team || player.team)}</td><td>${line.height ? `${line.height} cm` : '—'}</td><td>${line.overall ?? '—'}</td><td>${line.gp ?? '—'}</td><td>${Number(line.pts || 0).toFixed(1)}</td><td>${Number(line.reb || 0).toFixed(1)}</td><td>${Number(line.ast || 0).toFixed(1)}</td><td>${Number(line.stl || 0).toFixed(1)}</td><td>${Number(line.blk || 0).toFixed(1)}</td><td>${awards}</td></tr>`;
+            }).join('') || '<tr><td colspan="11" class="muted">Aucune saison terminée pour ce joueur.</td></tr>';
+            $('startCareerGame').disabled = isRetired || !players.some(p => String(p.id) === String(player.id));
+        }
+        function renderSeasonStats() {
+            const query = $('seasonStatsSearch').value.trim().toLowerCase();
+            const rows = [...seasonStatHistory];
+            if ((phase === 'regular' || phase === 'playoffs') && resultsLabel && !seasonStatHistory.some(r => r.season === resultsLabel)) {
+                players.forEach(p => {
+                    const line = seasonLines.get(p.id);
+                    if (line) rows.push({ season: resultsLabel, name: p.name, ...line });
+                });
+            }
+            rows.sort((a, b) => b.season.localeCompare(a.season) || b.pts - a.pts || a.name.localeCompare(b.name));
+            const filtered = rows.filter(r => `${r.season} ${r.name} ${r.team}`.toLowerCase().includes(query));
+            $('seasonStatsTable').innerHTML = filtered.map(r => `<tr><td>${esc(r.season)}</td><td><b>${esc(r.name)}</b></td><td>${esc(r.team)}</td><td>${r.gp}</td><td>${r.pts.toFixed(1)}</td><td>${r.reb.toFixed(1)}</td><td>${r.ast.toFixed(1)}</td><td>${r.stl.toFixed(1)}</td><td>${r.blk.toFixed(1)}</td><td>${(r.fg * 100).toFixed(1)}%</td><td>${(r.three * 100).toFixed(1)}%</td><td>${(r.ft * 100).toFixed(1)}%</td><td>${(r.ts * 100).toFixed(1)}%</td><td>${r.tov.toFixed(1)}</td><td>${r.plusMinus > 0 ? '+' : ''}${r.plusMinus.toFixed(1)}</td><td>${r.missed}</td><td>${r.mpg.toFixed(1)}</td></tr>`).join('') || `<tr><td colspan="17" class="muted">${query ? 'Aucune statistique ne correspond.' : 'Les statistiques apparaîtront après la simulation de la saison.'}</td></tr>`;
+        }
+        function render() {
+            const teams = [...new Set(players.map(p => p.team))].sort();
+            $('playerCount').textContent = players.length; $('teamCount').textContent = teams.length;
+            $('avgTs').textContent = players.length ? (players.reduce((a, p) => a + p.ts, 0) / players.length * 100).toFixed(1) + '%' : '—';
+            $('dataStatus').className = 'muted';
+            $('spin').disabled = !teams.length; $('autoFill').disabled = !players.length;
+            if (selectedTeam && !teams.includes(selectedTeam)) selectedTeam = null;
+            renderSlots(); renderTable(); renderPicks(); renderSeasonStats(); refreshPlayerEditor(); refreshCustomTeamEditor(); renderFollowSelector(); renderCareerProfile();
+        }
+
+        /* ---------- Saison régulière ---------- */
+        function assignSeeds() {
+            ['East', 'West'].forEach(conf => {
+                const rows = seasonResults.filter(t => t.conference === conf).sort((a, b) => b.wins - a.wins || b.diff - a.diff);
+                rows.forEach((t, i) => t.seed = i < 8 ? i + 1 : null);
+            });
+        }
+        function binomial(trials, probability) {
+            const count = Math.max(0, Math.floor(trials));
+            const chance = clamp(probability, 0, 1);
+            let successes = 0;
+            for (let i = 0; i < count; i++) if (rnd() < chance) successes++;
+            return successes;
+        }
+        function genSeasonLines() {
+            seasonLines = new Map();
+            const teamStrengths = new Map([...new Set(players.map(p => p.team))].map(team => [team, strengthOf(players.filter(player => player.team === team))]));
+            players.forEach(p => {
+                const a = p.attributes;
+                const symmetric = () => rnd() + rnd() - 1;
+                const availability = clamp(.72 + a.durability * .0025 - Math.max(0, p.age - 31) * .012, .35, .97);
+                const gp = clamp(Math.round(82 * availability + symmetric() * (1 - a.durability / 120) * 18), 10, 82);
+                const mpg = clamp(p.mpg * (.9 + a.stamina * .001) * (p.age >= 35 ? .94 : 1), 8, 44);
+                const minutesFactor = clamp(mpg / Math.max(12, p.mpg), .55, 1.15);
+                const consistencyNoise = symmetric() * (1 - a.consistency / 100) * .12;
+                const shooterEffect = consistencyNoise + symmetric() * .012;
+                const threeShare = clamp(.25 + (a.threePoint - 60) * .006, .08, .55);
+                const threePct = clamp(p.three + (a.threePoint - (35 + p.three * 95)) * .001 + shooterEffect, .05, .65);
+                const twoPct = clamp(.46 + (p.ts - .55) * .8 + (a.finishing - 60) * .0007 + shooterEffect, .32, .72);
+                const ftPct = clamp(.52 + a.freeThrow * .004 + shooterEffect, .35, .98);
+                const freeThrowRate = clamp(.07 + a.finishing * .001 + (p.pos === 'C' || p.pos === 'PF' ? .025 : 0), .05, .24);
+                const expectedPointsPerShot = (1 - threeShare) * twoPct * 2 + threeShare * threePct * 3 + freeThrowRate * ftPct;
+                const expectedShotsPerGame = clamp(p.pts / Math.max(.55, expectedPointsPerShot), 2, 28);
+                const totals = { points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0, fgm: 0, fga: 0, threeMade: 0, threeAttempts: 0, ftMade: 0, fta: 0 };
+                const onCourtPossessions = Math.max(1, Math.round(80 * clamp(mpg / 48, .12, .92)));
+                const usage = clamp(.18 + p.pts * .008 + p.ast * .004, .18, .68);
+                const targetShots = expectedShotsPerGame * minutesFactor;
+                const shotRate = clamp(targetShots / Math.max(1, onCourtPossessions * usage), .08, .96);
+                const turnoverRate = clamp(.055 + p.pts * .0012 + p.ast * .001 - a.ballHandle * .00025, .02, .2);
+                const passOpportunity = clamp(p.ast / Math.max(1, onCourtPossessions * (1 - usage) * .72), 0, .98);
+                const defensiveReboundChance = clamp((p.reb / 25) * (1 + (p.height - 200) * .003 + (a.defensiveRebound - 60) * .002), .015, .7);
+                const offensiveReboundChance = clamp(.015 + a.offensiveRebound * .0015 + Math.max(0, p.height - 200) * .0008, .03, .3);
+                const stealChance = clamp(.002 + a.steal * .00014 + a.perimeterDefense * .00006 + a.defensiveIQ * .000035, .001, .06);
+                const blockChance = clamp(.001 + a.block * .00023 + a.interiorDefense * .00007 + a.perimeterDefense * .000025 + a.vertical * .000035 + (p.height - 200) * .0003, .001, .14);
+                const makeShot = (isThree, secondChance = false) => {
+                    totals.fga++;
+                    if (isThree) totals.threeAttempts++;
+                    const made = rnd() < (isThree ? threePct : twoPct);
+                    if (made) {
+                        totals.fgm++;
+                        totals.points += isThree ? 3 : 2;
+                        if (isThree) totals.threeMade++;
+                    } else if (!secondChance && rnd() < offensiveReboundChance) {
+                        totals.rebounds++;
+                        if (rnd() < .38) makeShot(rnd() < threeShare, true);
+                    }
+                    if (!isThree && rnd() < freeThrowRate) {
+                        const attempts = rnd() < .08 ? 3 : 2;
+                        for (let i = 0; i < attempts; i++) {
+                            totals.fta++;
+                            if (rnd() < ftPct) { totals.ftMade++; totals.points++; }
+                        }
+                    }
+                };
+                for (let game = 0; game < gp; game++) {
+                    for (let possession = 0; possession < onCourtPossessions; possession++) {
+                        if (rnd() < usage) {
+                            if (rnd() < turnoverRate) { totals.turnovers++; continue; }
+                            if (rnd() < shotRate) makeShot(rnd() < threeShare);
+                        } else if (rnd() < passOpportunity && rnd() < clamp(.48 + a.passing * .002 + a.offensiveIQ * .001, .45, .78)) {
+                            totals.assists++;
+                        }
+                    }
+                    const opponentPossessions = Math.max(1, Math.round(80 * minutesFactor));
+                    for (let possession = 0; possession < opponentPossessions; possession++) {
+                        if (rnd() < stealChance) { totals.steals++; continue; }
+                        if (rnd() >= .82) continue;
+                        const blocked = rnd() < blockChance;
+                        const opponentMade = !blocked && rnd() < .47;
+                        if (!opponentMade && rnd() < defensiveReboundChance) totals.rebounds++;
+                        if (blocked) totals.blocks++;
+                    }
+                }
+                const trueShooting = totals.fga + .44 * totals.fta ? totals.points / (2 * (totals.fga + .44 * totals.fta)) : p.ts;
+                seasonLines.set(p.id, {
+                    gp, missed: 82 - gp,
+                    reb: +(totals.rebounds / gp).toFixed(1), ast: +(totals.assists / gp).toFixed(1),
+                    stl: +(totals.steals / gp).toFixed(1), blk: +(totals.blocks / gp).toFixed(1), tov: +(totals.turnovers / gp).toFixed(1),
+                    fg: totals.fga ? totals.fgm / totals.fga : 0, fgm: totals.fgm, fga: totals.fga,
+                    three: totals.threeAttempts ? totals.threeMade / totals.threeAttempts : 0, threeMade: totals.threeMade, threeAttempts: totals.threeAttempts,
+                    ft: totals.fta ? totals.ftMade / totals.fta : 0, ftMade: totals.ftMade, fta: totals.fta,
+                    pts: +(totals.points / gp).toFixed(1),
+                    ts: clamp(trueShooting, .2, .85), plusMinus: +((teamStrengths.get(p.team) - .5) * 20 + symmetric() * 8).toFixed(1),
+                    mpg: +(mpg * (1 + symmetric() * (1 - a.consistency / 100) * .08)).toFixed(1),
+                    team: p.team, age: p.age, overall: overallRating(p)
+                });
+            });
+        }
+        function buildSeason() {
+            if (phase === 'playoffs') return;
+            const allTeamDefs = [...nbaTeams.map(([code, name, conference]) => ({ code, name, conference, custom: false })), ...customTeams.map(t => ({ code: t.code, name: t.name, conference: t.conference, custom: true, customId: t.id }))];
+            const stats = allTeamDefs.map(team => {
+                const strength = team.custom
+                    ? customTeamStrength(customTeams.find(t => t.id === team.customId))
+                    : clamp(strengthOf(players.filter(p => p.team === team.code)) + (rnd() - .5) * .06, .28, .80);
+                return { code: team.code, name: team.name, conference: team.conference, custom: team.custom, wins: 0, losses: 0, points: 0, oppPoints: 0, assists: 0, rebounds: 0, steals: 0, blocks: 0, turnovers: 0, strength };
+            });
+            for (let round = 0; round < 82; round++) {
+                const order = [...stats].sort(() => rnd() - 0.5);
+                if (order.length % 2) order.push({ code: 'BYE', wins: 0, losses: 0, points: 0, oppPoints: 0, assists: 0, rebounds: 0, steals: 0, blocks: 0, turnovers: 0, strength: .5 });
+                for (let i = 0; i < order.length; i += 2) {
+                    const a = order[i], b = order[i + 1];
+                    const probA = 1 / (1 + Math.exp(-((a.strength - b.strength + 0.025) * 5.2)));
+                    const aWins = rnd() < probA;
+                    const pace = 96 + rnd() * 8;
+                    const baseA = 107 + (a.strength - 0.5) * 35 + (rnd() * 18 - 9);
+                    const baseB = 107 + (b.strength - 0.5) * 35 + (rnd() * 18 - 9);
+                    let scoreA = Math.round(Math.max(78, baseA + (aWins ? 3 : -3)));
+                    let scoreB = Math.round(Math.max(78, baseB + (aWins ? -3 : 3)));
+                    if (scoreA === scoreB) { if (aWins) scoreA++; else scoreB++; }
+                    if (scoreA > scoreB) { a.wins++; b.losses++; } else { b.wins++; a.losses++; }
+                    a.points += scoreA; a.oppPoints += scoreB; b.points += scoreB; b.oppPoints += scoreA;
+                    a.assists += Math.round(scoreA * (0.19 + rnd() * 0.06)); b.assists += Math.round(scoreB * (0.19 + rnd() * 0.06));
+                    a.rebounds += Math.round(pace * (0.40 + rnd() * 0.08)); b.rebounds += Math.round(pace * (0.40 + rnd() * 0.08));
+                    a.steals += Math.round(5 + rnd() * 5); b.steals += Math.round(5 + rnd() * 5);
+                    a.blocks += Math.round(3 + rnd() * 4); b.blocks += Math.round(3 + rnd() * 4);
+                    a.turnovers += Math.round(10 + rnd() * 7); b.turnovers += Math.round(10 + rnd() * 7);
+                }
+            }
+            seasonResults = stats.map(t => ({ ...t, played: t.wins + t.losses, winPct: t.wins / 82, ppg: t.points / 82, oppg: t.oppPoints / 82, diff: (t.points - t.oppPoints) / 82, apg: t.assists / 82, rpg: t.rebounds / 82, spg: t.steals / 82, bpg: t.blocks / 82, tov: t.turnovers / 82 }));
+            assignSeeds(); genSeasonLines();
+            playoffs = null; lastAwards = null; phase = 'regular'; resultsLabel = seasonLabel(seasonYear);
+            $('seasonStatus').textContent = `Saison ${resultsLabel} simulée : ${stats.length} équipes, 82 matchs. Les 8 premiers de chaque conférence vont en séries.`;
+            renderAll();
+        }
+        function updateSeasonBoxes() {
+            if (!seasonResults.length) { ['seasonLeader', 'seasonTopPPG', 'seasonTopAPG'].forEach(i => $(i).textContent = '—'); $('seasonGames').textContent = '0'; return; }
+            const leader = [...seasonResults].sort((a, b) => b.wins - a.wins)[0];
+            const topP = [...seasonResults].sort((a, b) => b.ppg - a.ppg)[0], topA = [...seasonResults].sort((a, b) => b.apg - a.apg)[0];
+            $('seasonGames').textContent = String(Math.ceil(seasonResults.length / 2) * 82);
+            $('seasonLeader').textContent = `${leader.code} ${leader.wins}-${leader.losses}`;
+            $('seasonTopPPG').textContent = `${topP.code} ${topP.ppg.toFixed(1)}`;
+            $('seasonTopAPG').textContent = `${topA.code} ${topA.apg.toFixed(1)}`;
+        }
+        function renderStandings() {
+            const conf = $('conferenceFilter').value, sort = $('standingsSort').value;
+            const rows = seasonResults.filter(t => conf === 'ALL' || t.conference === conf).sort((a, b) => b[sort] - a[sort]);
+            $('standingsTable').innerHTML = rows.map((t, i) => `<tr><td class="rank">${i + 1}</td><td><span class="team-name">${esc(t.name)}</span><br><span class="muted">${esc(t.code)}</span></td><td>${t.conference === 'East' ? 'Est' : 'Ouest'}</td><td>${t.seed ? `<span class="pill gold">#${t.seed}</span>` : '<span class="muted">—</span>'}</td><td>${t.wins}</td><td>${t.losses}</td><td>${(t.winPct * 100).toFixed(1)}%</td><td>${t.ppg.toFixed(1)}</td><td>${t.oppg.toFixed(1)}</td><td>${t.diff > 0 ? '+' : ''}${t.diff.toFixed(1)}</td><td>${t.apg.toFixed(1)}</td><td>${t.rpg.toFixed(1)}</td><td>${t.spg.toFixed(1)}</td><td>${t.bpg.toFixed(1)}</td><td>${t.tov.toFixed(1)}</td></tr>`).join('');
+        }
+
+        /* ---------- Séries ---------- */
+        function seriesSim(a, b) { // a = meilleure tête de série (avantage du terrain)
+            let wa = 0, wb = 0, g = 0; const home = [1, 1, 0, 0, 1, 0, 1];
+            while (wa < 4 && wb < 4) {
+                const adv = (home[g] ? 1 : -1) * 0.13;
+                const p = 1 / (1 + Math.exp(-((a.strength - b.strength) * 6 + adv)));
+                rnd() < p ? wa++ : wb++; g++;
+            }
+            return { a, b, wa, wb, winner: wa > wb ? a : b, loser: wa > wb ? b : a };
+        }
+        function runPlayoffs() {
+            if (phase !== 'regular' || !seasonResults.length) return;
+            const rounds = [{ name: '1er tour', series: [] }, { name: 'Demi-finales de conférence', series: [] }, { name: 'Finales de conférence', series: [] }, { name: 'Finale NBA', series: [] }];
+            const champs = {};
+            const hi = (x, y) => x.seed < y.seed ? [x, y] : [y, x];
+            ['East', 'West'].forEach(conf => {
+                const field = seasonResults.filter(t => t.conference === conf && t.seed).sort((a, b) => a.seed - b.seed);
+                const play = (x, y, r) => { const [h, l] = hi(x, y); const s = seriesSim(h, l); s.conf = conf; rounds[r].series.push(s); return s.winner; };
+                const w1 = [[0, 7], [3, 4], [2, 5], [1, 6]].map(([i, j]) => play(field[i], field[j], 0));
+                const w2 = [[w1[0], w1[1]], [w1[2], w1[3]]].map(([x, y]) => play(x, y, 1));
+                champs[conf] = play(w2[0], w2[1], 2);
+            });
+            const e = champs.East, w = champs.West;
+            const [h, l] = (e.wins >= w.wins) ? [e, w] : [w, e];
+            const f = seriesSim(h, l); rounds[3].series.push(f);
+            playoffs = { rounds, champion: f.winner, runnerUp: f.loser, final: f };
+            phase = 'playoffs';
+            computeAwards();
+            $('seasonStatus').textContent = `Séries ${resultsLabel} terminées. Champion : ${f.winner.name}.`;
+            renderAll();
+        }
+        function seriesCard(s) {
+            const row = (t, w, won) => `<div class="srow ${won ? 'won' : ''}"><span>${t.seed ? '(' + t.seed + ') ' : ''}${esc(t.code)}</span><b>${w}</b></div>`;
+            return `<div class="series"><small>${s.conf ? (s.conf === 'East' ? 'Est' : 'Ouest') : 'Finale NBA'}</small>${row(s.a, s.wa, s.winner === s.a)}${row(s.b, s.wb, s.winner === s.b)}</div>`;
+        }
+        function renderPlayoffs() {
+            if (!playoffs) {
+                $('champBanner').innerHTML = '';
+                $('bracket').innerHTML = '<p class="muted">Les séries commencent après la saison régulière (8 meilleures équipes de chaque conférence).</p>';
+                return;
+            }
+            const f = playoffs.final, cw = f.winner === f.a ? f.wa : f.wb, cl = f.winner === f.a ? f.wb : f.wa;
+            $('champBanner').innerHTML = `🏆 Champion ${esc(resultsLabel)} : ${esc(playoffs.champion.name)} <span>bat ${esc(playoffs.runnerUp.name)} ${cw}-${cl}</span>`;
+            $('bracket').innerHTML = playoffs.rounds.map(r => `<div class="round"><h3>${r.name}</h3>${r.series.map(seriesCard).join('')}</div>`).join('');
+        }
+
+        /* ---------- Trophées ---------- */
+        function computeAwards() {
+            const label = resultsLabel;
+            const winPct = {}; seasonResults.forEach(t => winPct[t.code] = t.winPct);
+            const rows = players.map(p => ({ p, l: seasonLines.get(p.id) })).filter(x => x.l);
+            if (!rows.length) { lastAwards = { season: label, champion: playoffs.champion.name, runnerUp: playoffs.runnerUp.name, awards: [], allNBA: [] }; history.push(lastAwards); return; }
+            seasonStatHistory.push(...rows.map(({ p, l }) => ({ season: label, name: p.name, ...l })));
+            let elig = rows.filter(x => x.l.gp >= 55); if (elig.length < 5) elig = rows;
+            const wp = x => winPct[x.p.team] ?? .5;
+            const mvpScore = x => (x.l.pts + x.l.reb * .55 + x.l.ast * .9 + (x.l.stl + x.l.blk) + (x.l.ts - .54) * 45) * (.75 + wp(x) * .5);
+            const best = (arr, fn) => arr.reduce((b, x) => !b || fn(x) > fn(b) ? x : b, null);
+            const sc = o => o.pts + o.ast * .8 + o.reb * .5;
+            const line = x => `${x.l.pts.toFixed(1)} PTS · ${x.l.reb.toFixed(1)} REB · ${x.l.ast.toFixed(1)} AST`;
+            const awards = [];
+            const add = (key, lab, icon, x, detail) => {
+                if (!x) return;
+                awards.push({ key, label: lab, icon, name: x.p.name, team: x.p.team, detail: detail || line(x) });
+                x.p.trophies.push({ k: key, s: label });
+            };
+            add('MVP', 'MVP de la saison', '🏆', best(elig, mvpScore));
+            const champRoster = rosterOf(playoffs.champion).map(p => ({ p, l: seasonLines.get(p.id) })).filter(x => x.l);
+            add('MVP Finales', 'MVP des Finales', '🥇', best(champRoster, x => x.l.pts + x.l.ast * 1.2 + x.l.reb * .8 + rnd() * 3));
+            add('DPOY', 'Défenseur de l’année', '🛡️', best(elig, x => (x.l.stl * 3 + x.l.blk * 3 + x.l.reb * .35) * (.8 + wp(x) * .4)), null);
+            const dp = awards.find(a => a.key === 'DPOY'); if (dp) { const x = elig.find(r => r.p.name === dp.name); if (x) dp.detail = `${x.l.stl.toFixed(1)} STL · ${x.l.blk.toFixed(1)} BLK · ${x.l.reb.toFixed(1)} REB`; }
+            const rooks = rows.filter(x => x.p.rookie); const rookElig = rooks.filter(x => x.l.gp >= 30);
+            add('ROY', 'Recrue de l’année', '🌟', best(rookElig.length ? rookElig : rooks, x => sc(x.l)));
+            add('MIP', 'Joueur le plus amélioré', '📈', best(elig.filter(x => !x.p.rookie && x.p.history.length), x => sc(x.l) - sc(x.p.history[x.p.history.length - 1])));
+            add('6MOY', 'Meilleur 6e homme', '🪑', best(elig.filter(x => x.l.mpg <= 27), x => x.l.pts + x.l.ast * .5 + x.l.reb * .3));
+            add('Marqueur', 'Meilleur marqueur', '🎯', best(elig, x => x.l.pts));
+            add('Rebondeur', 'Meilleur rebondeur', '💪', best(elig, x => x.l.reb));
+            add('Passeur', 'Meilleur passeur', '🎩', best(elig, x => x.l.ast));
+            const allNBA = [...elig].sort((a, b) => mvpScore(b) - mvpScore(a)).slice(0, 5).map(x => ({ name: x.p.name, team: x.p.team, detail: line(x) }));
+            champRoster.forEach(x => x.p.trophies.push({ k: 'Bague', s: label }));
+            rows.forEach(({ p, l }) => p.history.push({ season: label, ...l, height: p.height, overall: overallRating(p), attributes: { ...p.attributes } }));
+            lastAwards = { season: label, champion: playoffs.champion.name, runnerUp: playoffs.runnerUp.name, awards, allNBA };
+            history.push(lastAwards);
+        }
+        function renderAwards() {
+            const el = $('awardsBox');
+            if (!lastAwards) { el.innerHTML = '<p class="muted">Les trophées seront remis après les séries.</p>'; return; }
+            el.innerHTML = `<div class="champ">Saison ${esc(lastAwards.season)} <span>— Champion : ${esc(lastAwards.champion)}</span></div>
+                <div class="awards">${lastAwards.awards.map(a => `<div class="award"><small>${a.icon} ${esc(a.label)}</small><b>${esc(a.name)}</b><span>${esc(a.team)} · ${esc(a.detail)}</span></div>`).join('') || '<p class="muted">Aucun joueur éligible.</p>'}</div>
+                ${lastAwards.allNBA.length ? `<h3>Meilleur cinq de la saison</h3><div class="awards">${lastAwards.allNBA.map(a => `<div class="award"><small>⭐ All-NBA</small><b>${esc(a.name)}</b><span>${esc(a.team)} · ${esc(a.detail)}</span></div>`).join('')}</div>` : ''}`;
+        }
+        function awardName(h, key) { const a = h.awards.find(x => x.key === key); return a ? `${esc(a.name)} <span class="muted">(${esc(a.team)})</span>` : '<span class="muted">—</span>'; }
+        function renderHistory() {
+            $('historyTable').innerHTML = [...history].reverse().map(h => `<tr><td><b>${esc(h.season)}</b></td><td>🏆 ${esc(h.champion)}</td><td>${esc(h.runnerUp)}</td><td>${awardName(h, 'MVP')}</td><td>${awardName(h, 'MVP Finales')}</td><td>${awardName(h, 'DPOY')}</td><td>${awardName(h, 'ROY')}</td><td>${awardName(h, 'MIP')}</td><td>${awardName(h, '6MOY')}</td><td>${awardName(h, 'Marqueur')}</td></tr>`).join('') || '<tr><td colspan="10" class="muted">Aucune saison terminée.</td></tr>';
+        }
+
+        /* ---------- Intersaison ---------- */
+        const firstNames = ['Marc-Antoine', 'Liam', 'Noah', 'Mathis', 'Kévin', 'Jordan', 'Malik', 'Darius', 'Tyrese', 'Elijah', 'Jaden', 'Cole', 'Antoine', 'Samuel', 'Étienne', 'Théo', 'Jayden', 'Isaiah', 'Kobe', 'Terrence', 'Nikola', 'Mateo', 'Kenji', 'Amadou', 'Dario', 'Ousmane', 'Jonas', 'Rémi', 'Xavier', 'Zach', 'Caleb', 'Devin', 'Marcus', 'Andre', 'Félix', 'Nolan', 'Eli', 'Rashad', 'Tariq', 'Olivier'];
+        const lastNames = ['Tremblay', 'Gagnon', 'Roy', 'Côté', 'Bouchard', 'Gauthier', 'Morin', 'Lavoie', 'Fortin', 'Gagné', 'Johnson', 'Williams', 'Brooks', 'Carter', 'Hayes', 'Jackson', 'Moore', 'Reed', 'Foster', 'Bell', 'Diallo', 'Traoré', 'Okafor', 'Mbeki', 'Novak', 'Petrović', 'Silva', 'Santos', 'Müller', 'Jansen', 'Kowalski', 'Ivanov', 'Tanaka', 'Park', 'Mensah', 'Ndiaye', 'Rivera', 'Cruz', 'Dubois', 'Lemieux'];
+        function randName(used) {
+            for (let k = 0; k < 50; k++) { const n = `${firstNames[Math.floor(rnd() * firstNames.length)]} ${lastNames[Math.floor(rnd() * lastNames.length)]}`; if (!used.has(n)) { used.add(n); return n; } }
+            const n = `Recrue ${nextPlayerId}`; used.add(n); return n;
+        }
+        function progress(p) {
+            const a = p.age;
+            const trend = a <= 20 ? .08 : a <= 22 ? .06 : a <= 24 ? .035 : a <= 27 ? .01 : a <= 30 ? -.005 : a <= 32 ? -.025 : a <= 34 ? -.045 : a <= 37 ? -.07 : -.10;
+            const noise = (rnd() + rnd() + rnd() - 1.5) * .08, d = trend + noise;
+            p.pts = +clamp(p.pts * (1 + d), 0, 45).toFixed(1);
+            p.ast = +clamp(p.ast * (1 + d * .8), 0, 16).toFixed(1);
+            p.reb = +clamp(p.reb * (1 + d * .7), 0, 18).toFixed(1);
+            p.stl = +clamp(p.stl * (1 + d * .6), 0, 3.2).toFixed(1);
+            p.blk = +clamp(p.blk * (1 + d * .6), 0, 4).toFixed(1);
+            p.ts = +clamp(p.ts + d * .12, .2, .75).toFixed(3);
+            if (p.three > 0) p.three = +clamp(p.three + d * .06, .05, .55).toFixed(3);
+            p.mpg = +clamp(p.mpg * (a >= 34 ? .97 : a <= 23 && p.mpg < 32 ? 1.03 : 1), 8, 44).toFixed(1);
+            const physical = new Set(['speed', 'acceleration', 'agility', 'vertical', 'stamina', 'durability']);
+            attributeNames.forEach(([key]) => {
+                const ageTrend = physical.has(key)
+                    ? a <= 24 ? .5 : a <= 29 ? .05 : a <= 33 ? -.35 : a <= 37 ? -1.1 : -2
+                    : a <= 22 ? .4 : a <= 27 ? .15 : a <= 32 ? 0 : key === 'shotIQ' || key === 'offensiveIQ' || key === 'defensiveIQ' || key === 'basketballIQ' ? .15 : -.25;
+                const growth = (ageTrend + p.attributes.workEthic * .004 + p.attributes.potential * .003 - 0.45) * (a <= 27 ? 1 : .55) + (rnd() - .5) * (100 - p.attributes.consistency) * .012;
+                p.attributes[key] = Math.round(clamp(p.attributes[key] + growth, 20, 99));
+            });
+            p.height = Math.round(clamp(p.height + (a < 21 ? .4 : 0), 150, 240));
+        }
+        function makeRookie(q, code, label, pickNo, used) {
+            const pos = positions[Math.floor(rnd() * 5)], big = pos === 'C' || pos === 'PF', guard = pos === 'PG' || pos === 'SG';
+            const reb = +((big ? 3 + q * 4 : 1.2 + q * 2) + rnd() * 1.5).toFixed(1);
+            const rookie = {
+                id: nextPlayerId++, name: randName(used), team: code, pos,
+                pts: +(3 + q * 11 + rnd() * 3).toFixed(1), reb, ast: +((guard ? 1.5 + q * 3.5 : .8 + q * 1.5) + rnd()).toFixed(1),
+                ts: +(.49 + q * .05 + rnd() * .03).toFixed(3), three: +(pos === 'C' ? .15 + rnd() * .15 : .28 + q * .05 + rnd() * .06).toFixed(3),
+                mpg: +(10 + q * 18 + rnd() * 4).toFixed(1), stl: estStl(pos), blk: estBlk(pos, reb),
+                age: 19 + Math.floor(rnd() * 4), season: seasonLabel(seasonYear + 1), source: `Repêchage ${label} (choix #${pickNo})`,
+                trophies: [], history: [], careerGames: [], rookie: true
+            };
+            rookie.height = defaultHeight(pos, rookie.name);
+            rookie.attributes = defaultAttributes(rookie, rookie.height);
+            rookie.attributes.potential = Math.round(clamp(76 + q * 20 + rnd() * 6, 70, 99));
+            rookie.attributes.workEthic = Math.round(55 + rnd() * 40);
+            return rookie;
+        }
+        function runOffseason() {
+            if (phase !== 'playoffs') return;
+            const label = resultsLabel, next = seasonLabel(seasonYear + 1);
+            const sc = p => p.pts + p.ast * .8 + p.reb * .5;
+            // 1) Vieillissement + progression
+            players.forEach(p => { const before = sc(p); p.age++; progress(p); p.rookie = false; p.season = next; p._delta = sc(p) - before; });
+            // 2) Retraites
+            const retiredNow = [], gone = new Set();
+            players.forEach(p => {
+                let chance = clamp((p.age - 34) * .13, 0, 1);
+                if (p.age >= 32 && p.pts < 6) chance += .35;
+                if (p.age >= 32 && p.mpg < 10) chance += .2;
+                if (p.age >= 42 || rnd() < chance) {
+                    gone.add(p.id);
+                    retired.push({ id: p.id, name: p.name, team: p.team, pos: p.pos, height: p.height, age: p.age, seasons: p.history.length, pts: p.pts, retiredIn: next, trophies: p.trophies, history: p.history, attributes: p.attributes, careerGames: p.careerGames || [] });
+                    retiredNow.push(`${p.name} (${p.age} ans)`);
+                }
+            });
+            const survivors = players.filter(p => !gone.has(p.id));
+            const risers = [...survivors].sort((a, b) => b._delta - a._delta).slice(0, 5).map(p => `${p.name} (${p.age} ans, ${p._delta >= 0 ? '+' : ''}${p._delta.toFixed(1)})`);
+            const fallers = [...survivors].sort((a, b) => a._delta - b._delta).slice(0, 5).map(p => `${p.name} (${p.age} ans, ${p._delta >= 0 ? '+' : ''}${p._delta.toFixed(1)})`);
+            players = survivors; players.forEach(p => delete p._delta);
+            starters = starters.map(s => s && gone.has(s.id) ? null : s);
+            customTeams.forEach(t => t.playerIds = t.playerIds.filter(id => !gone.has(id)));
+            // 3) Repêchage : ordre inversé du classement (loterie légère), 2 tours
+            const order = seasonResults.map(t => ({ code: t.code, name: t.name, custom: t.custom, key: t.winPct + (rnd() - .5) * .08 })).sort((a, b) => a.key - b.key);
+            const picks = [...order, ...order], used = new Set(players.map(p => p.name)), draftRows = [];
+            picks.forEach((t, i) => {
+                const r = makeRookie(1 - i / picks.length, t.code, label, i + 1, used);
+                players.push(r);
+                if (t.custom) { const ct = customTeams.find(x => x.code === t.code); if (ct) ct.playerIds.push(r.id); }
+                draftRows.push({ n: i + 1, round: i < order.length ? 1 : 2, team: t.name, code: t.code, player: r });
+            });
+            lastDraft = { season: label, rows: draftRows };
+            lastOffseason = { season: label, next, retired: retiredNow, risers, fallers, rookies: draftRows.length };
+            // 4) Nouvelle saison
+            seasonYear++; phase = 'idle'; seasonLines = new Map();
+            $('seasonStatus').textContent = `Intersaison terminée : ${retiredNow.length} retraite(s), ${draftRows.length} recrues. La saison ${next} est prête.`;
+            renderAll();
+        }
+        function renderOffseason() {
+            const box = $('offseasonBox');
+            if (!lastOffseason) {
+                box.innerHTML = '<p class="muted">L’intersaison se déclenche après les séries (bouton « Intersaison »).</p>';
+                $('draftTable').innerHTML = ''; $('retiredTable').innerHTML = retired.length ? '' : '<tr><td colspan="7" class="muted">Aucun retraité pour l’instant.</td></tr>';
+                return;
+            }
+            const o = lastOffseason, list = a => a.length ? a.map(esc).join(', ') : '<span class="muted">aucun</span>';
+            box.innerHTML = `<div class="award" style="margin-bottom:10px"><small>Intersaison ${esc(o.season)} → ${esc(o.next)}</small>
+                <span>📈 Plus fortes progressions : ${list(o.risers)}</span><span>📉 Plus fortes baisses : ${list(o.fallers)}</span>
+                <span>👴 Retraites (${o.retired.length}) : ${list(o.retired)}</span><span>🧒 Recrues repêchées : ${o.rookies}</span></div>`;
+            $('draftTable').innerHTML = lastDraft ? lastDraft.rows.map(r => `<tr><td class="rank">${r.n}</td><td>${r.round}</td><td>${esc(r.team)}</td><td><b>${esc(r.player.name)}</b></td><td>${r.player.pos}</td><td>${r.player.age}</td><td>${r.player.pts.toFixed(1)}</td><td>${r.player.reb.toFixed(1)}</td><td>${r.player.ast.toFixed(1)}</td></tr>`).join('') : '';
+            $('retiredTable').innerHTML = [...retired].reverse().map(r => `<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.team)}</td><td>${r.age}</td><td>${r.seasons}</td><td>${r.pts.toFixed(1)}</td><td>${esc(r.retiredIn)}</td><td>${trophySummary(r)}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">Aucun retraité pour l’instant.</td></tr>';
+        }
+
+        /* ---------- Cycle & boutons ---------- */
+        function updateButtons() {
+            const label = seasonLabel(seasonYear);
+            $('simulateSeason').disabled = phase === 'playoffs';
+            $('runPlayoffs').disabled = phase !== 'regular';
+            $('runOffseason').disabled = phase !== 'playoffs';
+            $('resetSeason').disabled = phase === 'playoffs';
+            $('dataSeason').textContent = label;
+            $('phaseLabel').textContent = `Saison ${label} — ` + (phase === 'idle' ? 'à simuler' : phase === 'regular' ? 'saison régulière terminée, séries à jouer' : 'séries terminées, intersaison à faire');
+        }
+        function renderAll() { render(); updateSeasonBoxes(); renderStandings(); renderPlayoffs(); renderAwards(); renderHistory(); renderOffseason(); updateButtons(); }
+        function runAll() {
+            if (phase !== 'playoffs') buildSeason();
+            if (phase === 'regular') runPlayoffs();
+            runOffseason();
+        }
+        function runYears(n) { for (let i = 0; i < n; i++) runAll(); }
+
+        $('simulateSeason').onclick = buildSeason;
+        $('runPlayoffs').onclick = runPlayoffs;
+        $('runOffseason').onclick = runOffseason;
+        $('runYear').onclick = () => runYears(1);
+        $('runFive').onclick = () => runYears(5);
+        $('resetSeason').onclick = () => { if (phase === 'playoffs') return; seasonResults = []; playoffs = null; lastAwards = null; seasonLines = new Map(); phase = 'idle'; $('seasonStatus').textContent = 'Classement réinitialisé.'; renderAll(); };
+        $('conferenceFilter').onchange = renderStandings; $('standingsSort').onchange = renderStandings;
+        $('seasonStatsSearch').oninput = renderSeasonStats;
+        $('exportStandings').onclick = () => {
+            if (!seasonResults.length) { alert('Simule une saison avant l’export.'); return; }
+            const rows = [['Rang', 'Équipe', 'Conférence', 'V', 'D', 'Win%', 'PPG', 'OPPG', 'Diff', 'APG', 'RPG', 'SPG', 'BPG', 'TOV'].join(' | '), ...seasonResults.slice().sort((a, b) => b.wins - a.wins).map((t, i) => [i + 1, t.name, t.conference, t.wins, t.losses, (t.winPct * 100).toFixed(1), t.ppg.toFixed(1), t.oppg.toFixed(1), t.diff.toFixed(1), t.apg.toFixed(1), t.rpg.toFixed(1), t.spg.toFixed(1), t.bpg.toFixed(1), t.tov.toFixed(1)].join(' | '))].join('\n');
+            download(rows, 'classement_nba_simule.txt', 'text/plain;charset=utf-8');
+        };
+        $('exportHistory').onclick = () => {
+            if (!history.length) { alert('Aucune saison terminée à exporter.'); return; }
+            const body = history.map(h => `Saison ${h.season} — Champion : ${h.champion} (finaliste : ${h.runnerUp})\n` + h.awards.map(a => `  ${a.label} : ${a.name} (${a.team}) — ${a.detail}`).join('\n')).join('\n\n');
+            download(body, 'palmares_nba_simule.txt', 'text/plain;charset=utf-8');
+        };
+
+        /* ---------- Créateur de joueur ---------- */
+        function renderAttributeEditor(attributes = null) {
+            const sample = { pos: $('editPos').value, pts: Number($('editPts').value) || 10, reb: Number($('editReb').value) || 4, ast: Number($('editAst').value) || 3, ts: (Number($('editTs').value) || 56) / 100, three: (Number($('editThree').value) || 35) / 100, mpg: Number($('editMpg').value) || 20, age: Number($('editAge').value) || 24 };
+            const defaults = attributes || defaultAttributes(sample, Number($('editHeight').value) || defaultHeight(sample.pos));
+            $('attributeEditor').innerHTML = Object.entries(attributeGroups).map(([group, entries]) => `<div class="attribute-group"><h3>${esc(group)}</h3><div class="attribute-grid">${entries.map(([key, label]) => `<label class="field">${esc(label)}<input type="number" min="0" max="100" step="1" id="attr-${key}" value="${Math.round(defaults[key] || 50)}"></label>`).join('')}</div></div>`).join('');
+            updateEditorOverall();
+        }
+        function updateEditorOverall() {
+            if (!$('attributeEditor').children.length) return;
+            const attrs = Object.fromEntries(attributeNames.map(([key]) => [key, Number($(`attr-${key}`).value) || 0]));
+            $('editOverall').textContent = `GÉN ${overallRating({ pos: $('editPos').value, attributes: attrs })}`;
+        }
+        function initTeamEditor() {
+            refreshEditTeams();
+            renderAttributeEditor();
+        }
+        function refreshEditTeams() {
+            const selected = $('editTeam').value;
+            $('editTeam').innerHTML = nbaTeams.map(t => `<option value="${t[0]}">${t[1]} (${t[0]})</option>`).join('') +
+                customTeams.map(t => `<option value="${esc(t.code)}">${esc(t.name)} (${esc(t.code)})</option>`).join('');
+            if ([...nbaTeams.map(t => t[0]), ...customTeams.map(t => t.code)].includes(selected)) $('editTeam').value = selected;
+        }
+        function refreshPlayerEditor() {
+            const sel = $('editPlayerSelect').value;
+            $('editPlayerSelect').innerHTML = '<option value="">— Nouveau joueur —</option>' + [...players].sort((a, b) => a.name.localeCompare(b.name)).map(p => `<option value="${p.id}">${esc(p.name)} (${esc(p.team)})</option>`).join('');
+            if (players.some(p => String(p.id) === sel)) $('editPlayerSelect').value = sel;
+            refreshEditTeams();
+        }
+        function editorValues() {
+            const name = $('editName').value.trim();
+            if (!name) { alert('Entre le nom du joueur.'); return null; }
+            const num = id => Math.max(0, Number($(id).value) || 0);
+            const value = { name, team: $('editTeam').value, pos: $('editPos').value, age: clamp(Math.round(num('editAge')) || 24, 18, 45), pts: num('editPts'), reb: num('editReb'), ast: num('editAst'), ts: Math.min(1, num('editTs') / 100), three: Math.min(1, num('editThree') / 100), mpg: Math.min(48, num('editMpg')), height: Math.round(clamp(num('editHeight') || defaultHeight($('editPos').value, name), 150, 240)), season: seasonLabel(seasonYear), source: 'Joueur personnalisé' };
+            value.attributes = Object.fromEntries(attributeNames.map(([key]) => [key, Math.round(clamp(num(`attr-${key}`), 0, 100))]));
+            return value;
+        }
+        function fillEditor(p) {
+            $('editName').value = p.name; $('editTeam').value = p.team; $('editPos').value = positions.includes(p.pos) ? p.pos : 'PG'; $('editAge').value = p.age;
+            $('editPts').value = p.pts; $('editReb').value = p.reb; $('editAst').value = p.ast; $('editTs').value = (p.ts * 100).toFixed(1);
+            $('editThree').value = (p.three * 100).toFixed(1); $('editMpg').value = p.mpg; $('editHeight').value = p.height;
+            renderAttributeEditor(p.attributes);
+        }
+        $('createPlayer').onclick = () => {
+            const v = editorValues(); if (!v) return;
+            v.id = nextPlayerId++; v.stl = estStl(v.pos); v.blk = estBlk(v.pos, v.reb); v.trophies = []; v.history = []; v.careerGames = []; v.rookie = false;
+            movePlayerToTeam(v, v.team);
+            players.push(v); render(); $('editPlayerSelect').value = String(v.id); $('editorStatus').textContent = `${v.name} a été créé.`;
+        };
+        $('updatePlayer').onclick = () => {
+            const id = +$('editPlayerSelect').value, p = players.find(x => x.id === id);
+            if (!p) { alert('Sélectionne un joueur à modifier.'); return; }
+            const v = editorValues(); if (!v) return;
+            Object.assign(p, v, { id }); movePlayerToTeam(p, v.team); render(); $('editPlayerSelect').value = String(id); $('editorStatus').textContent = `${p.name} a été modifié.`;
+        };
+        $('deletePlayer').onclick = () => {
+            const id = +$('editPlayerSelect').value, p = players.find(x => x.id === id);
+            if (!p) { alert('Sélectionne un joueur à supprimer.'); return; }
+            if (!confirm(`Supprimer ${p.name} ?`)) return;
+            players = players.filter(x => x.id !== id); starters = starters.map(x => x && x.id === id ? null : x);
+            customTeams.forEach(t => t.playerIds = t.playerIds.filter(i => i !== id));
+            render(); $('editPlayerSelect').value = ''; $('editorStatus').textContent = `${p.name} a été supprimé.`;
+        };
+        $('clearEditor').onclick = () => { $('editPlayerSelect').value = ''; $('editName').value = ''; $('editAge').value = 24; $('editPts').value = 10; $('editReb').value = 4; $('editAst').value = 3; $('editTs').value = 56; $('editThree').value = 35; $('editMpg').value = 20; $('editHeight').value = defaultHeight($('editPos').value); renderAttributeEditor(); $('editorStatus').textContent = 'Champs vidés.'; };
+        $('editPlayerSelect').onchange = () => { const p = players.find(x => x.id === +$('editPlayerSelect').value); if (p) fillEditor(p); };
+        $('editPos').onchange = () => { if (!$('editPlayerSelect').value) { $('editHeight').value = defaultHeight($('editPos').value); renderAttributeEditor(); } else updateEditorOverall(); };
+        $('attributeEditor').oninput = updateEditorOverall;
+
+        /* ---------- Données, export, import ---------- */
+        $('demo').onclick = () => load(demoPlayers.map(p => ({ ...p })), 'Démo chargée : ' + demoPlayers.length + ' profils illustratifs. Ce ne sont PAS les statistiques officielles 2025-2026.');
+        $('reset').onclick = () => {
+            players = []; starters = [null, null, null, null, null]; selectedTeam = null; customTeams = [];
+            resetLeague(); renderAll(); $('dataStatus').textContent = 'Base réinitialisée.'; $('teamResult').textContent = '—'; $('teamHint').textContent = 'Charge la base pour commencer.';
+            $('seasonStatus').textContent = 'Aucune saison simulée pour le moment.';
+        };
+        $('search').oninput = renderTable; $('sort').onchange = renderTable;
+        $('variance').oninput = () => $('varianceValue').textContent = $('variance').value + '%';
+        $('export').onclick = () => {
+            const body = ['NBA SIM LAB — EXPORT DE STATS', 'Saison : ' + seasonLabel(seasonYear), 'Date export: ' + new Date().toISOString(), 'ATTENTION: les profils DEMO sont illustratifs et non des statistiques officielles.', 'Format: nom | équipe | poste | âge | PTS | REB | AST | STL | BLK | TS% | 3P% | MPG | source', '', ...players.map(p => `${p.name} | ${p.team} | ${p.pos} | ${p.age} | ${p.pts} | ${p.reb} | ${p.ast} | ${p.stl} | ${p.blk} | ${(p.ts * 100).toFixed(2)}% | ${(p.three * 100).toFixed(2)}% | ${p.mpg} | ${p.source}`)].join('\n');
+            download(body, 'nba_stats_' + seasonLabel(seasonYear) + '.txt', 'text/plain;charset=utf-8');
+        };
+        $('exportSave').onclick = exportState;
+        $('importFile').onchange = async e => {
+            const f = e.target.files[0]; if (!f) return;
+            try {
+                const data = JSON.parse(await f.text());
+                const list = Array.isArray(data) ? data : data?.players;
+                if (!Array.isArray(list)) throw Error('Le JSON doit contenir un tableau de joueurs (ou une sauvegarde NBA Sim Lab).');
+                load(list, `Import réussi : ${list.length} joueurs depuis ${f.name}. Attributs manquants migrés automatiquement.`, Array.isArray(data) ? null : data);
+            } catch (err) { alert('Import impossible : ' + err.message + '\nFormat attendu : tableau JSON de joueurs ou sauvegarde NBA Sim Lab exportée.'); }
+        };
+        function download(content, name, type) {
+            const a = document.createElement('a'), url = URL.createObjectURL(new Blob([content], { type }));
+            a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        /* ---------- Match simple (section 03) ---------- */
+        function hotFactor(p, variance) {
+            const stability = (p.attributes?.consistency || 65) / 100;
+            const spread = variance / 100 * (1.3 - stability);
+            return clamp(1 + (rnd() + rnd() - 1) * spread * 1.8, .55, 1.4);
+        }
+        function simulate() {
+            const five = starters.filter(Boolean);
+            if (five.length < 5) { $('gameLog').innerHTML = '<span style="color:#ffbd8d">Il faut cinq starters pour lancer la simulation.</span>'; return }
+            const n = +$('possessions').value, variance = +$('variance').value;
+            let home = 0, away = 0; const hotNames = [], coldNames = [], defensivePlays = [];
+            const form = five.map(p => ({ p, hot: hotFactor(p, variance) }));
+            form.forEach(x => { if (x.hot > 1.2) hotNames.push(x.p.name); if (x.hot < .72) coldNames.push(x.p.name) });
+            for (let i = 0; i < n; i++) {
+                const x = form[Math.floor(rnd() * form.length)], p = x.p;
+                const skill = rnd() < clamp(p.attributes.threePoint / 180, .1, .6) ? p.attributes.threePoint : p.attributes.closeShot;
+                const baseTs = clamp(p.ts + (skill - 60) * .0014, .25, .78);
+                const shotProb = clamp(baseTs * x.hot + (p.attributes.shotIQ - 60) * .001 + (p.attributes.consistency - 60) * .0004, .22, .76);
+                const threeShare = clamp(p.three > 0 ? p.attributes.threePoint / 160 : .05, .03, .65);
+                if (rnd() < shotProb) { home += rnd() < threeShare ? 3 : 2 } else if (rnd() < .13) home += 1;
+                const defense = five[Math.floor(rnd() * five.length)];
+                const stealChance = clamp(.006 + defense.attributes.steal * .0002 + defense.attributes.perimeterDefense * .0001, .015, .05);
+                if (rnd() < stealChance) defensivePlays.push(`${defense.name} provoque une perte de balle.`);
+                else {
+                    const opponentShotMade = rnd() < .49;
+                    const blockChance = clamp(.003 + defense.attributes.block * .00015 + defense.attributes.interiorDefense * .00006 + (defense.height - 200) * .00015, .005, .045);
+                    if (rnd() < blockChance) defensivePlays.push(`${defense.name} contre un tir adverse.`);
+                    else if (opponentShotMade) away += rnd() < .37 ? 3 : 2;
+                }
+            }
+            const labels = []; if (hotNames.length) labels.push('🔥 Hot : ' + hotNames.join(', ')); if (coldNames.length) labels.push('🧊 Cold : ' + coldNames.join(', ')); if (!labels.length) labels.push('Forme globalement neutre.');
+            if (home > away) win += 1; else lose += 1;
+            $('scoreA').textContent = home; $('scoreB').textContent = away;
+            $('winner').textContent = home === away ? 'Égalité' : home > away ? 'VICTOIRE' : 'DÉFAITE';
+            $('momentum').textContent = hotNames.length ? 'Hot' : coldNames.length ? 'Cold' : 'Neutre';
+            $('Wins').textContent = win; $('Loses').textContent = lose;
+            $('gameLog').innerHTML = `<p>${labels.map(esc).join('<br>')}</p><p>Possessions : ${n} · Variance : ${variance}% · Cinq utilisé : ${five.map(p => esc(p.name)).join(', ')}</p><p>${defensivePlays.slice(0, 5).map(esc).join('<br>') || 'Aucune interception ou contres simulés.'}</p><small>Match simplifié : les défenses et les tirs sont échantillonnés selon les attributs; ce n’est pas une simulation complète de possessions NBA.</small>`;
+            if (win + lose === 82) { win = 0; lose = 0; }
+        }
+        $('simulate').onclick = simulate;
+
+        function careerStats() {
+            return { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0, fgm: 0, fga: 0, threeMade: 0, threeAttempts: 0, ftMade: 0, fta: 0, minutes: 32 };
+        }
+        function careerShot(player, game, kind, defender) {
+            const attr = player.attributes, defense = defender.attributes;
+            let skill = attr.threePoint, base = .12, shotType = 'Tir à 3 points', isThree = true, points = 3;
+            if (kind === 'mid') { skill = attr.midRange; base = .2; shotType = 'Tir à mi-distance'; isThree = false; points = 2; }
+            if (kind === 'drive' || kind === 'dunk' || kind === 'isolation') {
+                skill = kind === 'dunk' ? attr.dunk : kind === 'isolation' ? Math.max(attr.layup, attr.midRange) : attr.layup;
+                base = kind === 'dunk' ? .29 : .25;
+                shotType = kind === 'dunk' ? 'Dunk' : kind === 'isolation' ? 'Isolation vers le panier' : 'Pénétration / layup';
+                isThree = false; points = 2;
+            }
+            const isInterior = !isThree && kind !== 'mid';
+            const contest = isInterior ? defense.interiorDefense : defense.perimeterDefense;
+            const heightReach = isInterior ? (defender.height - 200) * .0014 + defense.block * .00045 : 0;
+            const fatigue = game.turn * .0015 * (1 - attr.stamina / 100);
+            const variance = (rnd() - .5) * (100 - attr.consistency) * .001;
+            const creation = kind === 'isolation' ? (attr.ballHandle + attr.playmaking - 120) * .0007 : kind === 'drive' ? (attr.speed + attr.acceleration - 120) * .0004 : 0;
+            const chance = clamp(base + skill * .004 + (attr.shotIQ - 60) * .0012 + (attr.clutch - 60) * .00025 - (contest - 50) * .0013 - heightReach + creation + variance - fatigue, .08, .78);
+            const blocked = isInterior && rnd() < clamp(.008 + defense.block * .00045 + defense.vertical * .00012 + (defender.height - 200) * .0003 - attr.finishing * .00016, .005, .12);
+            game.stats.fga++;
+            if (isThree) game.stats.threeAttempts++;
+            const made = !blocked && rnd() < chance;
+            if (made) {
+                game.stats.fgm++;
+                if (isThree) game.stats.threeMade++;
+                game.stats.pts += points;
+                game.home += points;
+            } else if (blocked) {
+                game.log.push(`${defender.name} contre le ${shotType.toLowerCase()}!`);
+            }
+            if (rnd() < clamp(.015 + attr.finishing * .00035, .02, .055)) {
+                game.stats.fta++;
+                if (rnd() < clamp(.48 + attr.freeThrow * .004, .35, .96)) {
+                    game.stats.ftMade++; game.stats.pts++; game.home++;
+                }
+            }
+            if (!made && rnd() < .18 + player.height * .00035 + attr.offensiveRebound * .0005) game.stats.reb++;
+            game.log.push(`${shotType} : ${made ? `${points} points` : blocked ? 'tir contré' : 'manqué'}.`);
+        }
+        function careerPass(player, game) {
+            const success = rnd() < clamp(.54 + player.attributes.passing * .003 + player.attributes.playmaking * .0015 - .08, .45, .91);
+            if (!success) {
+                game.stats.tov++;
+                game.log.push('Passe interceptée ou mal ajustée : perte de balle.');
+                return;
+            }
+            const made = rnd() < clamp(.34 + player.attributes.offensiveIQ * .002 + player.attributes.passing * .001, .36, .65);
+            if (made) {
+                game.stats.ast++;
+                game.home += 2; game.log.push('Passe décisive : le coéquipier marque.');
+            } else {
+                game.log.push('Passe réussie, mais le coéquipier manque son tir.');
+                if (rnd() < .2) game.stats.reb++;
+            }
+        }
+        function careerAction(player, game, action) {
+            const defender = game.defender;
+            if (action === 'pass') { careerPass(player, game); return; }
+            if (action === 'pick') {
+                if (rnd() < clamp(.48 + player.attributes.playmaking * .002, .5, .72)) careerShot(player, game, 'drive', { ...defender, attributes: { ...defender.attributes, interiorDefense: defender.attributes.interiorDefense - 8, block: defender.attributes.block - 7 } });
+                else careerPass(player, game);
+                return;
+            }
+            if (action === 'isolation') {
+                careerShot(player, game, rnd() < .55 ? 'drive' : 'mid', defender);
+                return;
+            }
+            careerShot(player, game, action, defender);
+        }
+        function careerOpponentPossession(player, game) {
+            game.home += binomial(4, .45) * 2;
+            game.away += binomial(4, .47) * 2;
+            const stealChance = clamp(.012 + player.attributes.steal * .00045 + player.attributes.perimeterDefense * .00022 + player.attributes.defensiveIQ * .00012, .02, .13);
+            if (rnd() < stealChance) {
+                game.stats.stl++;
+                const fastBreak = binomial(2, .5);
+                game.home += fastBreak;
+                game.log.push(`${player.name} intercepte la passe${fastBreak ? ' et provoque un panier en transition' : ''}.`);
+                return;
+            }
+            const opponentMakes = rnd() < clamp(.42 + (game.opponentStrength - 60) * .002, .32, .62);
+            const blockChance = clamp(.008 + player.attributes.block * .00042 + player.attributes.interiorDefense * .00016 + player.attributes.vertical * .00009 + (player.height - 200) * .00035, .01, .13);
+            if (!opponentMakes && rnd() < blockChance) {
+                game.stats.blk++;
+                game.log.push(`${player.name} bloque le tir adverse.`);
+            }
+            if (opponentMakes) {
+                game.away += rnd() < .35 ? 3 : 2;
+                game.log.push('Le joueur adverse marque.');
+            } else if (rnd() < clamp(.16 + player.attributes.defensiveRebound * .003 + (player.height - 200) * .002, .2, .65)) {
+                game.stats.reb++;
+                game.log.push(`${player.name} récupère le rebond défensif.`);
+            } else {
+                game.log.push('Tir adverse manqué, rebond récupéré par un coéquipier.');
+            }
+        }
+        function renderCareerMatch() {
+            const game = careerGame;
+            if (!game) return;
+            const turn = Math.min(game.turn, game.maxTurns);
+            const quarter = Math.min(4, Math.floor(turn / 4) + 1);
+            const minute = Math.max(0, 12 - (turn % 4) * 3);
+            $('careerScore').textContent = `${game.home} - ${game.away}`;
+            $('careerClock').textContent = game.turn >= game.maxTurns ? 'Match terminé' : `Q${quarter} · ${String(minute).padStart(2, '0')}:00`;
+            $('careerPossession').textContent = `${Math.min(game.turn + 1, game.maxTurns)} / ${game.maxTurns}`;
+            $('careerLine').textContent = `${game.stats.pts} PTS · ${game.stats.reb} REB · ${game.stats.ast} AST · ${game.stats.stl} STL · ${game.stats.blk} BLK`;
+            $('careerLog').innerHTML = game.log.slice(-18).map(entry => `<p>${esc(entry)}</p>`).join('');
+            $('careerActions').querySelectorAll('button').forEach(button => {
+                button.disabled = game.turn >= game.maxTurns || (button.dataset.action === 'dunk' && (game.player.attributes.dunk < 62 || game.player.height < 185));
+            });
+        }
+        function playCareerTurn(action) {
+            if (!careerGame || careerGame.turn >= careerGame.maxTurns) return;
+            careerAction(careerGame.player, careerGame, action);
+            careerOpponentPossession(careerGame.player, careerGame);
+            careerGame.turn++;
+            if (careerGame.turn >= careerGame.maxTurns) {
+                const line = careerGame.stats;
+                careerGame.log.push(`Fin du match : ${careerGame.home}-${careerGame.away}. ${line.pts} PTS, ${line.reb} REB, ${line.ast} AST, ${line.stl} STL, ${line.blk} BLK, ${line.fgm}/${line.fga} tirs, ${line.threeMade}/${line.threeAttempts} à 3 pts, ${line.minutes} MIN.`);
+                careerGame.player.careerGames = careerGame.player.careerGames || [];
+                careerGame.player.careerGames.push({ season: seasonLabel(seasonYear), mode: careerGame.mode, ...line, teamScore: careerGame.home, opponentScore: careerGame.away });
+            }
+            renderCareerMatch();
+        }
+        function startCareerGame() {
+            const { player, isRetired } = selectedCareerPlayer();
+            if (!player || isRetired) return;
+            careerGame = {
+                player, mode: $('careerMode').value, turn: 0, maxTurns: 16, home: 0, away: 0,
+                opponentStrength: 55 + rnd() * 35,
+                defender: { name: 'Défenseur adverse', height: Math.round(188 + rnd() * 32), attributes: { interiorDefense: 50 + rnd() * 40, perimeterDefense: 50 + rnd() * 40, block: 45 + rnd() * 45, vertical: 45 + rnd() * 45 } },
+                stats: careerStats(), log: [`Début du match ${seasonLabel(seasonYear)} — ${player.name}, ${player.team}.`]
+            };
+            $('careerMatch').hidden = false;
+            if (careerGame.mode === 'follow') {
+                const actions = ['three', 'mid', 'drive', 'isolation', 'pick', 'pass'];
+                while (careerGame.turn < careerGame.maxTurns) playCareerTurn(actions[Math.floor(rnd() * actions.length)]);
+                careerGame.log.unshift('Mode joueur suivi : match simulé automatiquement.');
+            }
+            renderCareerMatch();
+        }
+        $('followPlayer').onchange = () => {
+            followedPlayerId = $('followPlayer').value || null;
+            careerGame = null; $('careerMatch').hidden = true; renderCareerProfile();
+        };
+        $('startCareerGame').onclick = startCareerGame;
+        $('careerActions').onclick = event => {
+            const button = event.target.closest('button[data-action]');
+            if (button && !button.disabled) playCareerTurn(button.dataset.action);
+        };
+
+        initTeamEditor();
+        renderAll();
+    </script>
+</body>
+
+</html>
