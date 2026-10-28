@@ -207,6 +207,48 @@ function installActualRegularBox() {
   wrapped.__actualBoxWrapped=true;window.NBAMyNBAShowRegularBox=wrapped;
 }
 
+
+function installMinuteBudget() {
+  const current=window.NBAMyNBAMinutes;
+  if(typeof current!=="function" || current.__budgetWrapped)return;
+  const wrapped=function(p){
+    const team=String(p&&p.team||"");
+    const roster=playersForTeam(team);
+    const bases=roster.map(x=>({p:x,m:clamp(Number(current(x))||0,0,48)}));
+    const sum=bases.reduce((n,x)=>n+x.m,0);
+    const factor=sum>240?240/sum:1;
+    const row=bases.find(x=>String(x.p.id)===String(p.id));
+    return clamp((row?row.m:0)*factor,0,48);
+  };
+  wrapped.__budgetWrapped=true;window.NBAMyNBAMinutes=wrapped;
+}
+function normalizeVisibleMinuteInputs() {
+  if(applyingAuto)return;
+  ["input[data-minutes]","input[data-plan]"].forEach(selector=>{
+    const groups=new Map();
+    document.querySelectorAll(selector).forEach(input=>{
+      const row=input.closest("tr");
+      const teamSelect=$("mynbaRosterTeam");
+      const code=teamSelect&&teamSelect.value||"default";
+      if(!groups.has(code))groups.set(code,[]);
+      groups.get(code).push(input);
+    });
+    groups.forEach(list=>{
+      const values=list.map(x=>clamp(Number(x.value)||0,0,48));
+      const total=values.reduce((n,x)=>n+x,0);
+      if(total<=240)return;
+      applyingAuto=true;
+      let used=0;
+      list.forEach((input,i)=>{
+        const value=i===list.length-1?Math.max(0,240-used):Math.floor(values[i]*240/total);
+        input.value=String(clamp(value,0,48));used+=Number(input.value)||0;
+        input.dispatchEvent(new Event("change",{bubbles:true}));
+      });
+      applyingAuto=false;
+    });
+  });
+}
+
 function autoMinutes(code) {
   const roster=playersForTeam(code);
   if(!roster.length)return {sum:0,count:0};
@@ -340,7 +382,7 @@ function trimOversizedRosters() {
 }
 
 function start() {
-  trimOversizedRosters();installGameTracking();recoverCalendarAfterLoad();installScheduleActions();installAutoMinutes();installActualRegularBox();recordDevelopment();
+  trimOversizedRosters();installGameTracking();recoverCalendarAfterLoad();installScheduleActions();installAutoMinutes();installMinuteBudget();installActualRegularBox();recordDevelopment();normalizeVisibleMinuteInputs();
   document.addEventListener("change",enforceMinuteCap,true);
   document.addEventListener("click",event=>{
     if(event.target.closest('[data-leader-tab="players"]'))setTimeout(renderLeaderTable,0);
@@ -358,7 +400,7 @@ function start() {
     },0);
   },true);
   const observer=new MutationObserver(records=>{
-    hidePlayoffsCategory();installAutoMinutes();clearOldDevelopment();decorateDevelopment();
+    hidePlayoffsCategory();installAutoMinutes();normalizeVisibleMinuteInputs();clearOldDevelopment();decorateDevelopment();
     if(records.some(r=>r.type==="attributes" && r.target && r.target.id==="mynbaLeaderPlayers" && !r.target.hidden))setTimeout(renderLeaderTable,0);
   });
   observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["hidden"]});
