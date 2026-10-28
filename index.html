@@ -1527,7 +1527,6 @@
                 const round = activePlayoffRound();
                 if (!round) break;
                 round.series.filter(series => !series.winner).forEach(completePlayoffSeries);
-                if (playoffs.currentRound < 2 && (!playoffs.confRounds.West[playoffs.currentRound + 1] || !playoffs.confRounds.East[playoffs.currentRound + 1])) break;
             }
             renderAll();
         }
@@ -1781,7 +1780,7 @@
             $('resetSeason').disabled = phase === 'playoffs';
             $('dataSeason').textContent = label;
             const allGamesPlayed = Boolean(seasonCalendar && seasonCalendar.games.every(game => game.status === 'completed'));
-            $('phaseLabel').textContent = `Saison ${label} — ` + (phase === 'idle' ? 'calendrier prêt / intersaison' : phase === 'regular' ? (allGamesPlayed ? 'saison régulière terminée, séries à jouer' : 'saison régulière en cours') : 'séries terminées, intersaison à faire');
+            $('phaseLabel').textContent = `Saison ${label} — ` + (phase === 'idle' ? 'calendrier prêt / intersaison' : phase === 'regular' ? (allGamesPlayed ? 'saison régulière terminée, séries à jouer' : 'saison régulière en cours') : playoffs && playoffs.champion ? 'séries terminées, intersaison à faire' : playoffs && playoffs.final ? 'Finale NBA en cours' : 'playoffs en cours');
         }
         function renderAll() { render(); updateSeasonBoxes(); renderStandings(); renderSeasonCalendar(); renderPlayoffs(); renderAwards(); renderHistory(); renderOffseason(); updateButtons(); }
         function runAll() {
