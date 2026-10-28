@@ -8,10 +8,15 @@
 - Tableaux et tableau des séries défilables horizontalement au doigt.
 - Grilles de statistiques, éditeur, roue de sélection et calendrier adaptés aux petits écrans.
 - Focus clavier visible et prise en compte de `prefers-reduced-motion`.
-- Les fonctionnalités du simulateur existant sont conservées; les changements concernent principalement la présentation et la navigation.
+- Les fonctionnalités du simulateur existant sont conservées.
+- Le calendrier des 82 matchs est maintenant généré dès l’ouverture et reste visible, y compris à l’intersaison.
+- Les tuiles sont cliquables : choisir un match futur simule tous les tours précédents jusqu’à ce match, afin de garder un ordre cohérent.
+- Le bouton « Simuler partie » avance la prochaine rencontre de l’équipe sélectionnée dans le calendrier.
+- Les scores ont été retirés des tuiles; les défaites sont affichées en rouge et les libellés Victoire/Défaite sont masqués à l’intersaison.
 
 ## Vérifications effectuées
 - Syntaxe du JavaScript intégré vérifiée.
+- Nouveau test statique `tests/season-calendar-ui.test.js` pour les tuiles, l’ordre de progression, le bouton connecté, l’absence de scores et le style des défaites.
 - Tests existants du générateur de calendrier exécutés dans le runtime JavaScript disponible.
 - Vérification statique : aucun identifiant HTML dupliqué, toutes les ancres de navigation pointent vers une section existante.
 - Les règles responsive et les cibles tactiles sont présentes.
