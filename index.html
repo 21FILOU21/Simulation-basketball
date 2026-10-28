@@ -1601,13 +1601,14 @@
             const rows = players.map(p => ({ p, l: seasonLines.get(p.id) })).filter(x => x.l);
             if (!rows.length) return;
             const winPct = new Map(seasonResults.map(t => [t.code, t.winPct]));
-            const eligible = rows.filter(x => x.l.gp >= 30);
+            let eligible = rows.filter(x => x.l.gp >= 55); if (eligible.length < 5) eligible = rows;
+            const rookieEligible = rows.filter(x => x.p.rookie && x.l.gp >= 30);
             const best = (list, score) => list.reduce((current, item) => !current || score(item) > score(current) ? item : current, null);
             const line = x => `${x.l.pts.toFixed(1)} PTS · ${x.l.reb.toFixed(1)} REB · ${x.l.ast.toFixed(1)} AST`;
             const score = x => x.l.pts + x.l.ast * .8 + x.l.reb * .5;
             const candidates = [
                 ['🏆','MVP de la saison',best(eligible,x=>(x.l.pts+x.l.reb*.55+x.l.ast*.9+x.l.stl+x.l.blk+(x.l.ts-.54)*45)*(.75+(winPct.get(x.p.team)||.5)*.5))],
-                ['🌟','Recrue de l’année',best(eligible.filter(x=>x.p.rookie),score)],
+                ['🌟','Recrue de l’année',best(rookieEligible.length ? rookieEligible : rows.filter(x=>x.p.rookie),score)],
                 ['🛡️','Défenseur de l’année',best(eligible,x=>(x.l.stl*3+x.l.blk*3+x.l.reb*.35)*(.8+(winPct.get(x.p.team)||.5)*.4))],
                 ['📈','Joueur le plus amélioré',best(eligible.filter(x=>!x.p.rookie&&x.p.history.length),x=>score(x)-score({l:x.p.history[x.p.history.length-1]}))],
                 ['🪑','6e homme',best(eligible.filter(x=>x.l.mpg<=27),x=>x.l.pts+x.l.ast*.5+x.l.reb*.3)],
