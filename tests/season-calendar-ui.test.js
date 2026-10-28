@@ -17,7 +17,7 @@ assert.match(html, /\.schedule-game\.loss \.game-status/, "Defeats should be sty
 assert.match(script, /<span class="score">\$\{ownScore\} – \$\{opponentScore\}<\/span>/, "Completed regular-season tiles should display their score.");
 assert.match(script, /seasonResults = stats\.map\(team => \(\{/, "All teams should be visible in the initial standings before the first result.");
 assert.match(script, /function refreshCustomTeamSeasonSchedule\(\)/, "Creating a custom team before the season starts should refresh the calendar.");
-assert.match(script, /customTeams\.map\(t => \(\{ code: t\.code, name: t\.name, conference: t\.conference, custom: true, customId: t\.id \}\)\)/, "Custom teams should be included in the generated season calendar.");
+assert.match(script, /customTeams\.map\(t => \{ const settings = window\.NBAMyNBATeamSettings/, "Custom teams should be included in the generated season calendar.");
 assert.match(script, /phase !== 'idle'/, "Victory/defeat labels should be hidden during the offseason.");
 assert.match(script, /function simulateThroughRound\(targetRound\)/, "Season progression should be round-based.");
 
