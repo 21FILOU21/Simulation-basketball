@@ -209,6 +209,7 @@
         .champ span { color: var(--muted); font-size: 14px; font-weight: 600 }
         .bracket { display:grid; grid-template-columns:minmax(240px,1fr) minmax(180px,.75fr) minmax(240px,1fr); gap:14px; overflow-x:auto; align-items:start }
         .bracket-conference { display:grid; grid-template-columns:repeat(3,minmax(190px,1fr)); gap:10px; min-width:600px }
+        .bracket-conference > h3 { grid-column:1 / -1; margin:0; color:var(--gold) }
         .bracket-conference.east { direction:rtl }
         .bracket-conference.east > * { direction:ltr }
         .bracket-center { min-width:180px; display:flex; flex-direction:column; gap:12px; align-items:stretch }
@@ -471,7 +472,7 @@
             <div class="phase" id="phaseLabel">Saison 2025-26 — à simuler</div>
             <div class="actions">
                 <button class="btn primary" id="simulateSeason">1. Simuler la saison régulière</button>
-                <button class="btn orange" id="runPlayoffs">2. Simuler les séries</button>
+                <button class="btn orange" id="runPlayoffs">2. Commencer les séries</button>
                 <button class="btn gold" id="runOffseason">3. Intersaison (évolution + repêchage)</button>
             </div>
             <div class="actions" style="margin-top:8px">
@@ -1747,7 +1748,7 @@
             lastDraft = { season: label, rows: draftRows };
             lastOffseason = { season: label, next, retired: retiredNow, risers, fallers, rookies: draftRows.length };
             // 4) Nouvelle saison
-            seasonYear++; phase = 'idle'; seasonLines = new Map(); seasonResults = []; seasonCalendar = null; playoffs = null; selectedPlayoffGameId = null;
+            seasonYear++; phase = 'idle'; seasonLines = new Map(); seasonResults = []; seasonCalendar = null; playoffs = null; selectedPlayoffGameId = null; lastAwards = null;
             $('runPlayoffs').textContent = '2. Commencer les séries';
             $('seasonStatus').textContent = `Intersaison terminée : ${retiredNow.length} retraite(s), ${draftRows.length} recrues. La saison ${next} est prête.`;
             initializeSeasonCalendar();
@@ -1773,7 +1774,7 @@
             const label = seasonLabel(seasonYear);
             const regularSeasonComplete = Boolean(seasonCalendar && seasonCalendar.games.every(game => game.status === 'completed'));
             $('playoffsSection').hidden = !regularSeasonComplete && phase !== 'playoffs';
-            $('awardsSection').hidden = !regularSeasonComplete && phase === 'idle';
+            $('awardsSection').hidden = !regularSeasonComplete && phase !== 'playoffs' && !history.length;
             $('simulateSeason').disabled = phase === 'playoffs' || !seasonCalendar || !seasonCalendar.games.some(game => game.status !== 'completed');
             $('runPlayoffs').disabled = phase !== 'regular' || !seasonCalendar || seasonCalendar.games.some(game => game.status !== 'completed');
             $('runOffseason').disabled = phase !== 'playoffs' || !playoffs || !playoffs.champion;
