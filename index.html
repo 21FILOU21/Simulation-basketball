@@ -181,7 +181,13 @@
         .schedule-toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin:14px 0 }
         .schedule-month { margin:18px 0 8px; color:var(--orange); font-size:14px; font-weight:850; letter-spacing:.04em }
         .schedule-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px }
-        .schedule-game { min-width:0; padding:10px; border:1px solid var(--line); border-radius:12px; background:#0b1527 }
+        .schedule-game { min-width:0; width:100%; padding:10px; border:1px solid var(--line); border-radius:12px; background:#0b1527; color:var(--txt); text-align:left; font:inherit; display:block }
+        .schedule-game-button { cursor:pointer; min-height:84px; transition:border-color .15s,background .15s }
+        .schedule-game-button:hover:not(:disabled), .schedule-game-button:focus-visible { border-color:var(--blue); background:#142642 }
+        .schedule-game-button:disabled { cursor:default; opacity:1 }
+        .schedule-game.loss .game-status, .schedule-game .game-status.loss { color:#ff6868; font-weight:900 }
+        .schedule-game .game-meta, .schedule-game .matchup, .schedule-game .game-status { display:flex; justify-content:space-between; gap:6px }
+        .schedule-game .matchup { display:block; margin:8px 0 }
         .schedule-game.completed { border-color:#356b5a }
         .schedule-game .game-meta { display:flex; justify-content:space-between; gap:6px; color:var(--muted); font-size:10px; margin-bottom:7px }
         .schedule-game .matchup { display:grid; grid-template-columns:1fr auto; gap:4px; align-items:center; font-size:12px }
@@ -1170,23 +1176,19 @@
                 });
             });
         }
-        function buildSeason() {
-            if (phase === 'playoffs') return;
+        function initializeSeasonCalendar() {
             if (!seasonCalendarApi || typeof seasonCalendarApi.generateSeasonCalendar !== 'function') {
                 $('seasonStatus').textContent = 'Erreur : le moteur de calendrier n’a pas été chargé. Recharge la page.';
-                return;
+                return false;
             }
-
             const allTeamDefs = [
                 ...nbaTeams.map(([code, name, conference]) => ({ code, name, conference, custom: false })),
                 ...customTeams.map(t => ({ code: t.code, name: t.name, conference: t.conference, custom: true, customId: t.id }))
             ];
             if (allTeamDefs.length < 2) {
-                $('seasonStatus').textContent = 'Il faut au moins deux équipes pour générer une saison.';
-                return;
+                $('seasonStatus').textContent = 'Il faut au moins deux équipes pour générer un calendrier.';
+                return false;
             }
-
-            // Codes internes uniques : les équipes personnalisées peuvent réutiliser le code d'une franchise NBA.
             const usedCodes = new Set();
             const scheduleTeams = allTeamDefs.map(team => {
                 let scheduleCode = String(team.code).trim().toUpperCase();
@@ -1199,93 +1201,126 @@
                 usedCodes.add(scheduleCode);
                 return { ...team, scheduleCode };
             });
-
-            const teamByScheduleCode = new Map(scheduleTeams.map(team => [team.scheduleCode, team]));
             const stats = scheduleTeams.map(team => {
                 const strength = team.custom
                     ? customTeamStrength(customTeams.find(t => t.id === team.customId))
                     : clamp(strengthOf(players.filter(p => p.team === team.code)) + (rnd() - .5) * .06, .28, .80);
                 return {
-                    code: team.code, name: team.name, conference: team.conference, custom: team.custom,
-                    customId: team.customId, scheduleCode: team.scheduleCode,
-                    wins: 0, losses: 0, points: 0, oppPoints: 0, assists: 0, rebounds: 0,
+                    ...team, wins: 0, losses: 0, points: 0, oppPoints: 0, assists: 0, rebounds: 0,
                     steals: 0, blocks: 0, turnovers: 0, strength
                 };
             });
-            const statsByScheduleCode = new Map(stats.map(team => [team.scheduleCode, team]));
             const calendar = seasonCalendarApi.generateSeasonCalendar(
-                scheduleTeams.map(team => ({
-                    code: team.scheduleCode, name: team.name, conference: team.conference, custom: team.custom
-                })),
+                scheduleTeams.map(team => ({ code: team.scheduleCode, name: team.name, conference: team.conference, custom: team.custom })),
                 { gamesPerTeam: 82 }
             );
             const validation = seasonCalendarApi.validateSeasonCalendar(calendar);
             if (!validation.valid) {
                 $('seasonStatus').textContent = 'Le calendrier généré est invalide : ' + validation.errors.join(' ');
-                return;
+                return false;
             }
-
-            // Chaque rencontre est simulée une seule fois; les mêmes scores alimentent le calendrier et le classement.
-            for (const game of calendar.games) {
-                const home = statsByScheduleCode.get(game.home.code);
-                const away = statsByScheduleCode.get(game.away.code);
-                if (!home || !away) throw new Error('Équipe introuvable pour le match ' + game.id);
-                const homeWinProbability = 1 / (1 + Math.exp(-((home.strength - away.strength + .025) * 5.2)));
-                const homeWins = rnd() < homeWinProbability;
-                const pace = 96 + rnd() * 8;
-                const homeBase = 107 + (home.strength - .5) * 35 + (rnd() * 18 - 9);
-                const awayBase = 107 + (away.strength - .5) * 35 + (rnd() * 18 - 9);
-                let homeScore = Math.round(Math.max(78, homeBase + (homeWins ? 3 : -3)));
-                let awayScore = Math.round(Math.max(78, awayBase + (homeWins ? -3 : 3)));
-                if (homeScore === awayScore) {
-                    if (homeWins) homeScore++; else awayScore++;
+            seasonCalendar = { ...calendar, teams: stats, games: calendar.games, season: seasonYear };
+            seasonResults = [];
+            resultsLabel = seasonLabel(seasonYear);
+            playoffs = null;
+            lastAwards = null;
+            phase = 'idle';
+            $('seasonStatus').textContent = `Calendrier ${resultsLabel} prêt : ${calendar.totalGames} matchs à jouer. Clique sur une tuile ou sur « Simuler partie » pour avancer la saison.`;
+            return true;
+        }
+        function updateTeamSeasonAverages() {
+            if (!seasonCalendar) { seasonResults = []; return; }
+            const playedByCode = new Map(seasonCalendar.teams.map(team => [team.scheduleCode, 0]));
+            seasonCalendar.games.forEach(game => {
+                if (game.status === 'completed') {
+                    playedByCode.set(game.home.code, (playedByCode.get(game.home.code) || 0) + 1);
+                    playedByCode.set(game.away.code, (playedByCode.get(game.away.code) || 0) + 1);
                 }
-                game.homeScore = homeScore;
-                game.awayScore = awayScore;
-                game.status = 'completed';
-                game.winnerCode = homeScore > awayScore ? game.home.code : game.away.code;
-
-                if (homeScore > awayScore) { home.wins++; away.losses++; }
-                else { away.wins++; home.losses++; }
-                home.points += homeScore; home.oppPoints += awayScore;
-                away.points += awayScore; away.oppPoints += homeScore;
-                home.assists += Math.round(homeScore * (.19 + rnd() * .06));
-                away.assists += Math.round(awayScore * (.19 + rnd() * .06));
-                home.rebounds += Math.round(pace * (.40 + rnd() * .08));
-                away.rebounds += Math.round(pace * (.40 + rnd() * .08));
-                home.steals += Math.round(5 + rnd() * 5);
-                away.steals += Math.round(5 + rnd() * 5);
-                home.blocks += Math.round(3 + rnd() * 4);
-                away.blocks += Math.round(3 + rnd() * 4);
-                home.turnovers += Math.round(10 + rnd() * 7);
-                away.turnovers += Math.round(10 + rnd() * 7);
+            });
+            seasonResults = seasonCalendar.teams.map(team => {
+                const played = playedByCode.get(team.scheduleCode) || 0;
+                const denominator = Math.max(1, played);
+                return {
+                    ...team, played, winPct: played ? team.wins / played : 0,
+                    ppg: team.points / denominator, oppg: team.oppPoints / denominator,
+                    diff: (team.points - team.oppPoints) / denominator, apg: team.assists / denominator,
+                    rpg: team.rebounds / denominator, spg: team.steals / denominator,
+                    bpg: team.blocks / denominator, tov: team.turnovers / denominator
+                };
+            });
+            if (seasonCalendar.games.every(game => game.status === 'completed')) {
+                seasonResults.forEach(team => { team.winPct = team.wins / 82; });
+                assignSeeds();
+                genSeasonLines();
+                phase = 'regular';
+                $('seasonStatus').textContent = `Saison ${resultsLabel} terminée : ${seasonCalendar.games.length} matchs joués. Les 8 premiers de chaque conférence vont en séries.`;
+            } else if (seasonCalendar.games.some(game => game.status === 'completed')) {
+                phase = 'regular';
+                $('seasonStatus').textContent = `Saison ${resultsLabel} en cours : ${seasonCalendar.games.filter(game => game.status === 'completed').length}/${seasonCalendar.totalGames} matchs de ligue simulés.`;
             }
-
-            seasonCalendar = {
-                ...calendar,
-                teams: scheduleTeams,
-                games: calendar.games,
-                teamSchedules: calendar.teamSchedules
-            };
-            seasonResults = stats.map(t => ({
-                ...t,
-                played: t.wins + t.losses,
-                winPct: t.wins / 82,
-                ppg: t.points / 82,
-                oppg: t.oppPoints / 82,
-                diff: (t.points - t.oppPoints) / 82,
-                apg: t.assists / 82,
-                rpg: t.rebounds / 82,
-                spg: t.steals / 82,
-                bpg: t.blocks / 82,
-                tov: t.turnovers / 82
-            }));
-            assignSeeds();
-            genSeasonLines();
-            playoffs = null; lastAwards = null; phase = 'regular'; resultsLabel = seasonLabel(seasonYear);
-            $('seasonStatus').textContent = `Saison ${resultsLabel} simulée : ${stats.length} équipes, ${calendar.games.length} matchs joués. Le calendrier et le classement utilisent les mêmes scores; les 8 premiers de chaque conférence vont en séries.`;
+        }
+        function simulateScheduledGame(game) {
+            if (!seasonCalendar || !game || game.status === 'completed') return false;
+            const teams = new Map(seasonCalendar.teams.map(team => [team.scheduleCode, team]));
+            const home = teams.get(game.home.code), away = teams.get(game.away.code);
+            if (!home || !away) throw new Error('Équipe introuvable pour le match ' + game.id);
+            const homeWinProbability = 1 / (1 + Math.exp(-((home.strength - away.strength + .025) * 5.2)));
+            const homeWins = rnd() < homeWinProbability;
+            const pace = 96 + rnd() * 8;
+            const homeBase = 107 + (home.strength - .5) * 35 + (rnd() * 18 - 9);
+            const awayBase = 107 + (away.strength - .5) * 35 + (rnd() * 18 - 9);
+            let homeScore = Math.round(Math.max(78, homeBase + (homeWins ? 3 : -3)));
+            let awayScore = Math.round(Math.max(78, awayBase + (homeWins ? -3 : 3)));
+            if (homeScore === awayScore) { if (homeWins) homeScore++; else awayScore++; }
+            game.homeScore = homeScore; game.awayScore = awayScore; game.status = 'completed';
+            game.winnerCode = homeScore > awayScore ? game.home.code : game.away.code;
+            if (homeScore > awayScore) { home.wins++; away.losses++; } else { away.wins++; home.losses++; }
+            home.points += homeScore; home.oppPoints += awayScore;
+            away.points += awayScore; away.oppPoints += homeScore;
+            home.assists += Math.round(homeScore * (.19 + rnd() * .06));
+            away.assists += Math.round(awayScore * (.19 + rnd() * .06));
+            home.rebounds += Math.round(pace * (.40 + rnd() * .08));
+            away.rebounds += Math.round(pace * (.40 + rnd() * .08));
+            home.steals += Math.round(5 + rnd() * 5); away.steals += Math.round(5 + rnd() * 5);
+            home.blocks += Math.round(3 + rnd() * 4); away.blocks += Math.round(3 + rnd() * 4);
+            home.turnovers += Math.round(10 + rnd() * 7); away.turnovers += Math.round(10 + rnd() * 7);
+            return true;
+        }
+        function simulateThroughRound(targetRound) {
+            if (!seasonCalendar || phase === 'playoffs') return;
+            const rounds = [...new Set(seasonCalendar.games.map(game => game.round))].sort((a, b) => a - b);
+            for (const round of rounds) {
+                if (round > targetRound) break;
+                seasonCalendar.games.filter(game => game.round === round && game.status !== 'completed').forEach(simulateScheduledGame);
+            }
+            updateTeamSeasonAverages();
             renderAll();
         }
+        function simulateNextSeasonGame() {
+            if (!seasonCalendar || seasonCalendar.season !== seasonYear) {
+                if (!initializeSeasonCalendar()) return;
+            }
+            const teamCode = $('scheduleTeamFilter').value || (seasonCalendar.teams[0] && seasonCalendar.teams[0].scheduleCode);
+            const nextGame = seasonCalendar.games
+                .filter(game => game.status !== 'completed' && (game.home.code === teamCode || game.away.code === teamCode))
+                .sort((a, b) => a.round - b.round)[0];
+            if (!nextGame) {
+                $('seasonStatus').textContent = 'Tous les matchs de cette équipe sont déjà simulés.';
+                return;
+            }
+            simulateThroughRound(nextGame.round);
+            $('gameLog').textContent = `Match de saison simulé : ${nextGame.home.name} ${nextGame.homeScore} – ${nextGame.awayScore} ${nextGame.away.name}.`;
+        }
+        function buildSeason() {
+            if (phase === 'playoffs') return;
+            if (!seasonCalendar || seasonCalendar.season !== seasonYear) {
+                if (!initializeSeasonCalendar()) return;
+            }
+            const next = seasonCalendar.games.filter(game => game.status !== 'completed').sort((a, b) => a.round - b.round)[0];
+            if (next) simulateThroughRound(Math.max(...seasonCalendar.games.map(game => game.round)));
+            else { updateTeamSeasonAverages(); renderAll(); }
+        }
+        
         function updateSeasonBoxes() {
             if (!seasonResults.length) { ['seasonLeader', 'seasonTopPPG', 'seasonTopAPG'].forEach(i => $(i).textContent = '—'); $('seasonGames').textContent = '0'; return; }
             const leader = [...seasonResults].sort((a, b) => b.wins - a.wins)[0];
@@ -1300,10 +1335,10 @@
             const view = $('seasonCalendarView');
             const summary = $('scheduleSummary');
             if (!seasonCalendar || !seasonCalendar.games.length) {
-                select.innerHTML = '<option value="">Simule une saison pour charger le calendrier</option>';
+                select.innerHTML = '<option value="">Calendrier en préparation…</option>';
                 select.disabled = true;
-                summary.textContent = 'Le calendrier apparaîtra après la simulation.';
-                view.innerHTML = '<div class="schedule-empty">Aucun calendrier généré pour le moment.</div>';
+                summary.textContent = 'Le calendrier sera affiché ici.';
+                view.innerHTML = '<div class="schedule-empty">Préparation du calendrier…</div>';
                 return;
             }
             const previousValue = select.value;
@@ -1317,33 +1352,26 @@
                 .filter(game => game.home.code === teamCode || game.away.code === teamCode)
                 .map(game => {
                     const isHome = game.home.code === teamCode;
-                    return {
-                        ...game,
-                        gameNumber: isHome ? game.homeGameNumber : game.awayGameNumber,
-                        isHome,
-                        opponent: isHome ? game.away : game.home
-                    };
-                })
-                .sort((a, b) => a.gameNumber - b.gameNumber);
+                    return { ...game, gameNumber: isHome ? game.homeGameNumber : game.awayGameNumber, isHome, opponent: isHome ? game.away : game.home };
+                }).sort((a, b) => a.gameNumber - b.gameNumber);
             const completed = games.filter(game => game.status === 'completed').length;
-            summary.textContent = `${completed}/${seasonCalendar.gamesPerTeam} matchs terminés · ${seasonCalendar.totalGames} matchs dans la ligue`;
+            summary.textContent = `${completed}/${seasonCalendar.gamesPerTeam} matchs de cette équipe joués · ${seasonCalendar.games.filter(game => game.status === 'completed').length}/${seasonCalendar.totalGames} matchs de ligue`;
             const stages = [...new Set(games.map(game => game.stage))];
             view.innerHTML = stages.map(stage => {
                 const stageGames = games.filter(game => game.stage === stage);
                 const cards = stageGames.map(game => {
-                    const isHome = game.isHome;
-                    const own = isHome ? game.home : game.away;
-                    const opponent = game.opponent;
-                    const ownScore = isHome ? game.homeScore : game.awayScore;
-                    const opponentScore = isHome ? game.awayScore : game.homeScore;
+                    const ownScore = game.isHome ? game.homeScore : game.awayScore;
+                    const opponentScore = game.isHome ? game.awayScore : game.homeScore;
                     const done = game.status === 'completed';
                     const won = done && ownScore > opponentScore;
-                    const result = done ? (won ? 'V' : 'D') : 'À jouer';
-                    return `<article class="schedule-game ${done ? 'completed' : ''}">
-                        <div class="game-meta"><span>Match ${game.gameNumber}</span><span>${isHome ? 'DOMICILE' : 'EXTÉRIEUR'}</span></div>
-                        <div class="matchup"><strong>${isHome ? 'vs' : '@'} ${esc(opponent.name)}</strong><span class="score">${done ? `${ownScore}–${opponentScore}` : '—'}</span></div>
-                        <div class="game-status">${result}${done ? ` · ${esc(own.code)}` : ''}</div>
-                    </article>`;
+                    const showResult = done && phase !== 'idle';
+                    const result = showResult ? (won ? 'Victoire' : 'Défaite') : (done ? 'Terminée' : 'À jouer');
+                    const stateClass = showResult && !won ? ' loss' : '';
+                    return `<button type="button" class="schedule-game schedule-game-button ${done ? 'completed' : ''}${stateClass}" data-game-id="${esc(game.id)}" data-game-round="${game.round}" aria-label="Match ${game.gameNumber} contre ${esc(game.opponent.name)} — ${done ? (showResult ? result : 'terminé') : 'à jouer'}" ${done || phase === 'playoffs' ? 'disabled' : ''}>
+                        <span class="game-meta"><span>Match ${game.gameNumber}</span><span>${game.isHome ? 'DOMICILE' : 'EXTÉRIEUR'}</span></span>
+                        <span class="matchup"><strong>${game.isHome ? 'vs' : '@'} ${esc(game.opponent.name)}</strong></span>
+                        <span class="game-status${stateClass}">${result}</span>
+                    </button>`;
                 }).join('');
                 return `<h4 class="schedule-month">${esc(stage)} <span class="muted">· ${stageGames.length} matchs</span></h4><div class="schedule-grid">${cards}</div>`;
             }).join('') || '<div class="schedule-empty">Aucun match pour cette équipe.</div>';
@@ -1365,7 +1393,7 @@
             return { a, b, wa, wb, winner: wa > wb ? a : b, loser: wa > wb ? b : a };
         }
         function runPlayoffs() {
-            if (phase !== 'regular' || !seasonResults.length) return;
+            if (phase !== 'regular' || !seasonResults.length || !seasonCalendar || seasonCalendar.games.some(game => game.status !== 'completed')) return;
             const rounds = [{ name: '1er tour', series: [] }, { name: 'Demi-finales de conférence', series: [] }, { name: 'Finales de conférence', series: [] }, { name: 'Finale NBA', series: [] }];
             const champs = {};
             const hi = (x, y) => x.seed < y.seed ? [x, y] : [y, x];
@@ -1531,8 +1559,9 @@
             lastDraft = { season: label, rows: draftRows };
             lastOffseason = { season: label, next, retired: retiredNow, risers, fallers, rookies: draftRows.length };
             // 4) Nouvelle saison
-            seasonYear++; phase = 'idle'; seasonLines = new Map();
+            seasonYear++; phase = 'idle'; seasonLines = new Map(); seasonResults = []; seasonCalendar = null; playoffs = null;
             $('seasonStatus').textContent = `Intersaison terminée : ${retiredNow.length} retraite(s), ${draftRows.length} recrues. La saison ${next} est prête.`;
+            initializeSeasonCalendar();
             renderAll();
         }
         function renderOffseason() {
@@ -1553,12 +1582,13 @@
         /* ---------- Cycle & boutons ---------- */
         function updateButtons() {
             const label = seasonLabel(seasonYear);
-            $('simulateSeason').disabled = phase === 'playoffs';
-            $('runPlayoffs').disabled = phase !== 'regular';
+            $('simulateSeason').disabled = phase === 'playoffs' || !seasonCalendar || !seasonCalendar.games.some(game => game.status !== 'completed');
+            $('runPlayoffs').disabled = phase !== 'regular' || !seasonCalendar || seasonCalendar.games.some(game => game.status !== 'completed');
             $('runOffseason').disabled = phase !== 'playoffs';
             $('resetSeason').disabled = phase === 'playoffs';
             $('dataSeason').textContent = label;
-            $('phaseLabel').textContent = `Saison ${label} — ` + (phase === 'idle' ? 'à simuler' : phase === 'regular' ? 'saison régulière terminée, séries à jouer' : 'séries terminées, intersaison à faire');
+            const allGamesPlayed = Boolean(seasonCalendar && seasonCalendar.games.every(game => game.status === 'completed'));
+            $('phaseLabel').textContent = `Saison ${label} — ` + (phase === 'idle' ? 'calendrier prêt / intersaison' : phase === 'regular' ? (allGamesPlayed ? 'saison régulière terminée, séries à jouer' : 'saison régulière en cours') : 'séries terminées, intersaison à faire');
         }
         function renderAll() { render(); updateSeasonBoxes(); renderStandings(); renderSeasonCalendar(); renderPlayoffs(); renderAwards(); renderHistory(); renderOffseason(); updateButtons(); }
         function runAll() {
@@ -1573,7 +1603,7 @@
         $('runOffseason').onclick = runOffseason;
         $('runYear').onclick = () => runYears(1);
         $('runFive').onclick = () => runYears(5);
-        $('resetSeason').onclick = () => { if (phase === 'playoffs') return; seasonResults = []; seasonCalendar = null; playoffs = null; lastAwards = null; seasonLines = new Map(); phase = 'idle'; $('seasonStatus').textContent = 'Classement réinitialisé.'; renderAll(); };
+        $('resetSeason').onclick = () => { if (phase === 'playoffs') return; seasonResults = []; seasonCalendar = null; playoffs = null; lastAwards = null; seasonLines = new Map(); phase = 'idle'; $('seasonStatus').textContent = 'Classement réinitialisé.'; initializeSeasonCalendar(); renderAll(); };
         $('conferenceFilter').onchange = renderStandings; $('standingsSort').onchange = renderStandings;
         $('scheduleTeamFilter').onchange = renderSeasonCalendar;
         $('seasonStatsSearch').oninput = renderSeasonStats;
@@ -1723,7 +1753,13 @@
             $('gameLog').innerHTML = `<p>${labels.map(esc).join('<br>')}</p><p>Possessions : ${n} · Variance : ${variance}% · Cinq utilisé : ${five.map(p => esc(p.name)).join(', ')}</p><p>${defensivePlays.slice(0, 5).map(esc).join('<br>') || 'Aucune interception ou contres simulés.'}</p><small>Match simplifié : les défenses et les tirs sont échantillonnés selon les attributs; ce n’est pas une simulation complète de possessions NBA.</small>`;
             if (win + lose === 82) { win = 0; lose = 0; }
         }
-        $('simulate').onclick = simulate;
+        $('simulate').onclick = simulateNextSeasonGame;
+        $('seasonCalendarView').addEventListener('click', event => {
+            const tile = event.target.closest('button[data-game-id]');
+            if (!tile || tile.disabled || !seasonCalendar) return;
+            const game = seasonCalendar.games.find(item => item.id === tile.dataset.gameId);
+            if (game) simulateThroughRound(game.round);
+        });
 
         function careerStats() {
             return { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0, fgm: 0, fga: 0, threeMade: 0, threeAttempts: 0, ftMade: 0, fta: 0, minutes: 32 };
@@ -1903,6 +1939,7 @@
         });
 
         initTeamEditor();
+        initializeSeasonCalendar();
         renderAll();
     </script>
 </body>
