@@ -65,7 +65,9 @@ function updateActualStats(game) {
     if (!roster.length) return;
     const mins = roster.map(p => ({p, m: typeof window.NBAMyNBAMinutes === "function" ? clamp(Number(window.NBAMyNBAMinutes(p))||0,0,48) : clamp(Number(p.mpg)||20,0,48)}));
     let minuteSum = mins.reduce((n,x)=>n+x.m,0);
-    if (minuteSum <= 0) { mins.forEach(x => x.m=240/Math.max(1,mins.length)); minuteSum=240; }
+    if (minuteSum <= 0) { mins.forEach(x => x.m=48); minuteSum=mins.length*48; }
+    const minuteBudget = Math.min(240, 48 * roster.length);
+    const integerMinutes = weightedAllocate(minuteBudget, roster, p => Math.max(.01, xMinutes(mins,p)));
     const weight = p => {
       const a = p.attributes || {};
       const tendency = typeof window.NBAMyNBATendency === "function" ? window.NBAMyNBATendency(p) : {};
@@ -81,7 +83,7 @@ function updateActualStats(game) {
     const blocks = weightedAllocate(5, roster, p => weight(p) * (.7 + (Number(p.blk)||0)*.15 + (Number((p.attributes||{}).block)||50)*.01));
     roster.forEach(p => {
       const id=String(p.id), minsValue=mins.find(x=>String(x.p.id)===id);
-      const line={pts:pts.get(id)||0,ast:assists.get(id)||0,reb:rebounds.get(id)||0,stl:steals.get(id)||0,blk:blocks.get(id)||0,minutes:Math.round(minsValue?minsValue.m:0),gp:1};
+      const line={pts:pts.get(id)||0,ast:assists.get(id)||0,reb:rebounds.get(id)||0,stl:steals.get(id)||0,blk:blocks.get(id)||0,minutes:Math.min(48,Number(integerMinutes.get(id)||0)),gp:1};
       const old=actual[id] || (actual[id]={pts:0,ast:0,reb:0,stl:0,blk:0,minutes:0,gp:0});
       ["pts","ast","reb","stl","blk","minutes","gp"].forEach(k=>old[k]=(Number(old[k])||0)+(Number(line[k])||0));
       gameBox.players[id]=line;
