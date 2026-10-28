@@ -27,9 +27,14 @@ for (const team of teams) {
   assert.ok(schedule.every(game => game.opponent.code !== team.code), "a team cannot play itself");
   assert.ok(schedule.every(game => game.status === "scheduled"));
   assert.ok(schedule.every(game => game.homeScore === null && game.awayScore === null));
+  const homeCount = schedule.filter(game => game.isHome).length;
+  assert.ok(homeCount >= 40 && homeCount <= 42, team.code + " home/away balance should stay within one game of 41.");
 }
 
-assert.throws(() => generateSeasonCalendar(makeTeams(3)), /nombre d’équipes doit être pair/);
+const oddTeamCalendar = generateSeasonCalendar(makeTeams(31));
+assert.equal(oddTeamCalendar.totalGames, 31 * 82 / 2);
+assert.equal(validateSeasonCalendar(oddTeamCalendar).valid, true);
+assert.ok(Object.values(oddTeamCalendar.teamSchedules).every(schedule => schedule.length === 82));
 assert.throws(() => generateSeasonCalendar([{ code: "AAA" }, { code: "aaa" }]), /code unique/);
 assert.throws(() => generateSeasonCalendar(teams, { gamesPerTeam: 0 }), /entier positif/);
 
@@ -38,4 +43,4 @@ assert.equal(twoTeamCalendar.games.length, 4);
 assert.equal(twoTeamCalendar.teamSchedules.T01.length, 4);
 assert.equal(validateSeasonCalendar(twoTeamCalendar).valid, true);
 
-console.log("OK — calendrier : 30 équipes, 82 matchs chacune, 1 230 matchs uniques et validation des cas limites.");
+console.log("OK — calendrier : équipes paires ou impaires, 82 matchs par équipe, matchs uniques et validation des cas limites.");
