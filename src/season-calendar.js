@@ -37,12 +37,11 @@
   }
 
   function makeRoundRobinRounds(teams) {
-    if (teams.length % 2 !== 0) {
-      throw new Error("Le calendrier exige un nombre pair d’équipes. Ajoutez une équipe neutre ou gérez explicitement les exemptions.");
-    }
-    const rotation = teams.slice();
+    const rotation = teams.length % 2 === 0
+      ? teams.slice()
+      : [...teams, { code: "__BYE__", name: "Exemption", conference: null, custom: false, _index: teams.length, _bye: true }];
     const rounds = [];
-    const roundCount = teams.length - 1;
+    const roundCount = rotation.length - 1;
     for (let roundIndex = 0; roundIndex < roundCount; roundIndex++) {
       const games = [];
       for (let i = 0; i < rotation.length / 2; i++) {
@@ -72,9 +71,6 @@
     if (!Number.isInteger(gamesPerTeam) || gamesPerTeam < 1) {
       throw new Error("gamesPerTeam doit être un entier positif.");
     }
-    if (teams.length % 2 !== 0) {
-      throw new Error("Le nombre d’équipes doit être pair pour garantir exactement le même nombre de matchs à chaque équipe.");
-    }
     const stages = Array.isArray(options.stages) && options.stages.length
       ? options.stages.map(stage => ({ label: String(stage.label), count: Number(stage.count) }))
       : DEFAULT_STAGES;
@@ -86,11 +82,16 @@
     const counts = new Map(teams.map(team => [team.code, 0]));
     const homeCounts = new Map(teams.map(team => [team.code, 0]));
     const games = [];
-    const maxRounds = gamesPerTeam;
-    for (let roundIndex = 0; roundIndex < maxRounds; roundIndex++) {
+    const maxRounds = gamesPerTeam + Math.ceil(gamesPerTeam / Math.max(1, teams.length - 1)) + teams.length * 2;
+    let roundIndex = 0;
+    while ([...counts.values()].some(count => count < gamesPerTeam) && roundIndex < maxRounds) {
       const cycleIndex = Math.floor(roundIndex / baseRounds.length);
       const baseRound = baseRounds[roundIndex % baseRounds.length];
-      const roundGames = baseRound.map(([left, right], matchIndex) => {
+      const roundGames = baseRound.filter(([left, right]) =>
+        !left._bye && !right._bye &&
+        counts.get(left.code) < gamesPerTeam &&
+        counts.get(right.code) < gamesPerTeam
+      ).map(([left, right], matchIndex) => {
         // Reverse home court every other complete round-robin cycle.
         let home = cycleIndex % 2 === 1 ? right : left;
         let away = home === left ? right : left;
@@ -122,6 +123,10 @@
         game.stage = stageForGame(game.gameNumberHome, stages);
         games.push(game);
       }
+      roundIndex++;
+    }
+    if ([...counts.values()].some(count => count !== gamesPerTeam)) {
+      throw new Error("Impossible de générer un calendrier équilibré avec les équipes fournies.");
     }
 
     const teamGames = new Map(teams.map(team => [team.code, []]));
