@@ -1587,7 +1587,8 @@
             $('runOffseason').disabled = phase !== 'playoffs';
             $('resetSeason').disabled = phase === 'playoffs';
             $('dataSeason').textContent = label;
-            $('phaseLabel').textContent = `Saison ${label} — ` + (phase === 'idle' ? 'à simuler' : phase === 'regular' ? 'saison régulière terminée, séries à jouer' : 'séries terminées, intersaison à faire');
+            const allGamesPlayed = Boolean(seasonCalendar && seasonCalendar.games.every(game => game.status === 'completed'));
+            $('phaseLabel').textContent = `Saison ${label} — ` + (phase === 'idle' ? 'calendrier prêt / intersaison' : phase === 'regular' ? (allGamesPlayed ? 'saison régulière terminée, séries à jouer' : 'saison régulière en cours') : 'séries terminées, intersaison à faire');
         }
         function renderAll() { render(); updateSeasonBoxes(); renderStandings(); renderSeasonCalendar(); renderPlayoffs(); renderAwards(); renderHistory(); renderOffseason(); updateButtons(); }
         function runAll() {
