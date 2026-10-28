@@ -6,7 +6,6 @@ const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const actual = window.NBASimActualPlayerStats = window.NBASimActualPlayerStats || Object.create(null);
 const boxScores = window.NBASimActualBoxScores = window.NBASimActualBoxScores || Object.create(null);
 let renderingLeaders = false;
-let applyingAuto = false;
 let lastRegularGameCount = 0;
 
 function teamCodeForSchedule(code) {
@@ -179,6 +178,77 @@ function renderLeaderTable() {
   const select=$(sortId); if(select)select.onchange=renderLeaderTable;
   renderingLeaders=false;
 }
+
+function installActualRegularBox() {
+  if(typeof window.NBAMyNBAShowRegularBox!=="function" || window.NBAMyNBAShowRegularBox.__actualBoxWrapped)return;
+  const original=window.NBAMyNBAShowRegularBox;
+  const wrapped=function(game){
+    if(game && game.status==="completed"){
+      let data=boxScores[String(game.id)];
+      if(!data){updateActualStats(game);data=boxScores[String(game.id)];}
+      const buildRows=(code,score,opp)=>{
+        const roster=playersForTeam(teamCodeForSchedule(code));
+        const lines=data&&data.players||{};
+        return roster.map(p=>{
+          const l=lines[String(p.id)]||{pts:0,ast:0,reb:0,stl:0,blk:0,minutes:0};
+          const pts=Number(l.pts)||0,min=clamp(Number(l.minutes)||0,0,48);
+          const fga=Math.max(0,Math.round(pts/Math.max(1.1,Number(p.ts)||.55)/2));
+          const threeA=Math.min(fga,Math.max(0,Math.round(fga*(Number(p.three)||.35))));
+          const threeM=Math.min(threeA,Math.round(pts/3*.25));
+          const fgm=Math.min(fga,Math.max(0,Math.round((pts-threeM*3)/2)));
+          const ftm=Math.max(0,pts-threeM*3-fgm*2);
+          return {name:p.name,min:min,pts:pts,fgm:fgm,fga:fga,threeM:threeM,threeA:threeA,ftm:ftm,fta:Math.max(ftm,Math.round(ftm/.75)),reb:Number(l.reb)||0,ast:Number(l.ast)||0,stl:Number(l.stl)||0,blk:Number(l.blk)||0,to:Math.max(0,Math.round((Number(l.ast)||0)*.18)),pf:Math.min(6,Math.round(min/12)),pm:Math.round((score-opp)*min/48)};
+        });
+      };
+      game.mynbaBoxScore={home:buildRows(game.home.code,game.homeScore,game.awayScore),away:buildRows(game.away.code,game.awayScore,game.homeScore)};
+    }
+    return original.apply(this,arguments);
+  };
+  wrapped.__actualBoxWrapped=true;window.NBAMyNBAShowRegularBox=wrapped;
+}
+
+
+function installMinuteBudget() {
+  const current=window.NBAMyNBAMinutes;
+  if(typeof current!=="function" || current.__budgetWrapped)return;
+  const wrapped=function(p){
+    const team=String(p&&p.team||"");
+    const roster=playersForTeam(team);
+    const bases=roster.map(x=>({p:x,m:clamp(Number(current(x))||0,0,48)}));
+    const sum=bases.reduce((n,x)=>n+x.m,0);
+    const factor=sum>240?240/sum:1;
+    const row=bases.find(x=>String(x.p.id)===String(p.id));
+    return clamp((row?row.m:0)*factor,0,48);
+  };
+  wrapped.__budgetWrapped=true;window.NBAMyNBAMinutes=wrapped;
+}
+function normalizeVisibleMinuteInputs() {
+  if(applyingAuto)return;
+  ["input[data-minutes]","input[data-plan]"].forEach(selector=>{
+    const groups=new Map();
+    document.querySelectorAll(selector).forEach(input=>{
+      const row=input.closest("tr");
+      const teamSelect=$("mynbaRosterTeam");
+      const code=teamSelect&&teamSelect.value||"default";
+      if(!groups.has(code))groups.set(code,[]);
+      groups.get(code).push(input);
+    });
+    groups.forEach(list=>{
+      const values=list.map(x=>clamp(Number(x.value)||0,0,48));
+      const total=values.reduce((n,x)=>n+x,0);
+      if(total<=240)return;
+      applyingAuto=true;
+      let used=0;
+      list.forEach((input,i)=>{
+        const value=i===list.length-1?Math.max(0,240-used):Math.floor(values[i]*240/total);
+        input.value=String(clamp(value,0,48));used+=Number(input.value)||0;
+        input.dispatchEvent(new Event("change",{bubbles:true}));
+      });
+      applyingAuto=false;
+    });
+  });
+}
+
 function autoMinutes(code) {
   const roster=playersForTeam(code);
   if(!roster.length)return {sum:0,count:0};
@@ -210,7 +280,6 @@ function autoMinutes(code) {
     }
   }
   let sum=0;
-  applyingAuto=true;
   roster.forEach(p=>{
     const id=String(p.id),value=minutes.get(id)||0;sum+=value;
     document.querySelectorAll('[data-plan="'+id+'"],[data-minutes="'+id+'"]').forEach(input=>{
@@ -236,14 +305,29 @@ function installAutoMinutes() {
   });
 }
 function enforceMinuteCap(event) {
+  if(applyingAuto)return;
   const input=event.target;
   if(!input || !input.matches || !input.matches('input[data-plan],input[data-minutes]'))return;
+  const isPlan=input.hasAttribute("data-plan");
+  const selector=isPlan?'input[data-plan]':'input[data-minutes]';
+  const all=[...document.querySelectorAll(selector)];
   const id=input.dataset.plan || input.dataset.minutes;
-  const all=[...document.querySelectorAll('input[data-plan],input[data-minutes]')];
-  const unique=new Map();
-  all.forEach(x=>{const k=x.dataset.plan||x.dataset.minutes;if(!unique.has(k)||x===input)unique.set(k,x);});
-  let others=0;unique.forEach((x,k)=>{if(k!==id)others+=clamp(Number(x.value)||0,0,48);});
-  input.value=String(clamp(Number(input.value)||0,0,Math.min(48,Math.max(0,240-others))));
+  const others=all.filter(x=>(x.dataset.plan||x.dataset.minutes)!==id);
+  const requested=clamp(Number(input.value)||0,0,48);
+  const otherSum=others.reduce((n,x)=>n+clamp(Number(x.value)||0,0,48),0);
+  applyingAuto=true;
+  input.value=String(requested);
+  if(otherSum+Number(input.value)>240 && otherSum>0){
+    const available=Math.max(0,240-Number(input.value));
+    let used=0;
+    others.forEach((x,i)=>{
+      const old=clamp(Number(x.value)||0,0,48);
+      const v=i===others.length-1?Math.max(0,available-used):Math.floor(old*available/otherSum);
+      x.value=String(clamp(v,0,48));used+=Number(x.value)||0;
+      x.dispatchEvent(new Event("change",{bubbles:true}));
+    });
+  }
+  applyingAuto=false;
 }
 function recordDevelopment() {
   if(typeof window.runOffseason!=="function" || window.runOffseason.__developmentWrapped)return;
@@ -258,9 +342,11 @@ function recordDevelopment() {
 }
 function clearOldDevelopment() {
   const count=Number(seasonCalendar?.games?.filter(g=>g.status==="completed").length)||0;
-  if(phase==="playoffs" || (count-lastRegularGameCount)>=41 || count>=82){
-    (players||[]).forEach(p=>{delete p._mynbaOverallDelta;delete p._mynbaDeltaStartGames;});
-  }
+  (players||[]).forEach(p=>{
+    if(Number(p._mynbaOverallDelta) && (phase==="playoffs" || count-(Number(p._mynbaDeltaStartGames)||0)>=41)){
+      delete p._mynbaOverallDelta;delete p._mynbaDeltaStartGames;
+    }
+  });
   lastRegularGameCount=count;
 }
 function decorateDevelopment() {
@@ -279,11 +365,24 @@ function decorateDevelopment() {
 }
 function hidePlayoffsCategory() {
   document.querySelectorAll(".mynba-category-card").forEach(card=>{
-    if(/playoffs/i.test(card.textContent||""))card.hidden=true;
+    if(/playoffs/i.test(card.textContent||"")){card.hidden=true;card.style.display="none";}
   });
 }
+
+function trimOversizedRosters() {
+  const codes=new Set((typeof nbaTeams!=="undefined"?nbaTeams:[]).map(t=>String(Array.isArray(t)?t[0]:t.code)));
+  (typeof customTeams!=="undefined"?customTeams:[]).forEach(t=>codes.add(String(t.code)));
+  codes.forEach(code=>{
+    const list=(players||[]).filter(p=>String(p.team)===code).sort((a,b)=>overall(b)-overall(a)||(Number(b.mpg)||0)-(Number(a.mpg)||0));
+    list.slice(15).forEach(p=>{
+      p.team="FA";
+      (typeof customTeams!=="undefined"?customTeams:[]).forEach(t=>{t.playerIds=(t.playerIds||[]).filter(id=>String(id)!==String(p.id));});
+    });
+  });
+}
+
 function start() {
-  installGameTracking();recoverCalendarAfterLoad();installScheduleActions();installAutoMinutes();recordDevelopment();
+  trimOversizedRosters();installGameTracking();recoverCalendarAfterLoad();installScheduleActions();installAutoMinutes();installMinuteBudget();installActualRegularBox();recordDevelopment();normalizeVisibleMinuteInputs();
   document.addEventListener("change",enforceMinuteCap,true);
   document.addEventListener("click",event=>{
     if(event.target.closest('[data-leader-tab="players"]'))setTimeout(renderLeaderTable,0);
@@ -301,7 +400,7 @@ function start() {
     },0);
   },true);
   const observer=new MutationObserver(records=>{
-    hidePlayoffsCategory();installAutoMinutes();clearOldDevelopment();decorateDevelopment();
+    hidePlayoffsCategory();installAutoMinutes();normalizeVisibleMinuteInputs();clearOldDevelopment();decorateDevelopment();
     if(records.some(r=>r.type==="attributes" && r.target && r.target.id==="mynbaLeaderPlayers" && !r.target.hidden))setTimeout(renderLeaderTable,0);
   });
   observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["hidden"]});
