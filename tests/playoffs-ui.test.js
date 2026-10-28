@@ -35,6 +35,11 @@ assert.match(script, /renderConferenceBracket\('East'\)/, "The East bracket shou
 assert.match(script, /Bilan de la série/, "Each playoff matchup should show its aggregate series score.");
 assert.doesNotMatch(script, /Partie jouée · Box score/, "The bracket should not list every game as a separate tile.");
 assert.match(presentation, /series-scoreline/, "The playoff layout should fit a full-width bracket.");
+assert.match(presentation, /class="playoff-series series-clickable" data-open-series=/, "Clicking the matchup card itself should open its confrontation.");
+assert.match(presentation, /addEventListener\('keydown',e=>\{const card=e\.target\.closest\('\[data-open-series\]\[role="button"\]'\)/, "Playoff matchup cards should support Enter and Space.");
+assert.doesNotMatch(presentation, /Ouvrir la confrontation/, "The separate open-confrontation button should be removed.");
+assert.match(presentation, /🏀 Intersaison · saison suivante/, "The Finals MVP screen should offer the next-season transition.");
+assert.match(presentation, /finalsOverlay=null;runOffseason\(\)/, "Continuing from the Finals MVP screen should trigger progression, retirements, and the draft.");
 assert.match(presentation, /while\(playoffs&&!playoffs\.champion&&guard\+\+<500\)/, "Simulate playoffs should advance safely until a champion is decided.");
 assert.match(presentation, /function showFinalsMvp\(\)/, "The Finals MVP screen should appear after the champion confirmation.");
 assert.doesNotMatch(presentation, /Aucune récompense disponible\./, "The awards screen should recover if preview cards are missing.");
