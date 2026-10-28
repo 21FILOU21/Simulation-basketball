@@ -1018,6 +1018,15 @@
             $('customTeamName').value = ''; $('customTeamCode').value = ''; $('customTeamSelect').value = '';
             starters = [null, null, null, null, null]; renderSlots(); renderPicks();
         }
+        function refreshCustomTeamSeasonSchedule() {
+            const hasPlayedGames = Boolean(seasonCalendar && seasonCalendar.games.some(game => game.status === 'completed'));
+            if (!hasPlayedGames && phase !== 'playoffs') {
+                initializeSeasonCalendar();
+                renderAll();
+                return 'Elle est intégrée au classement et au calendrier de la saison actuelle.';
+            }
+            return 'La saison a déjà commencé : elle sera intégrée au calendrier de la prochaine saison pour ne pas effacer les résultats déjà joués.';
+        }
         $('createCustomTeam').onclick = () => {
             const v = teamFormValues(); if (!v) return;
             if (nbaTeams.some(t => t[0] === v.code) || customTeams.some(t => t.code === v.code)) { alert('Ce code est déjà utilisé. Choisis-en un autre.'); return; }
@@ -1025,7 +1034,8 @@
             if (!validateCustomRoster(v.playerIds)) return;
             const team = { ...v, id: nextCustomTeamId++ };
             customTeams.push(team); assignCustomRoster(team, v); render();
-            setTeamStatus(`${v.name} a été créée! Elle jouera dans le classement à la prochaine saison simulée.`);
+            const scheduleMessage = refreshCustomTeamSeasonSchedule();
+            setTeamStatus(`${v.name} a été créée! ${scheduleMessage}`);
             clearTeamForm();
         };
         $('updateCustomTeam').onclick = () => {
@@ -1035,8 +1045,10 @@
             if (nbaTeams.some(t => t[0] === v.code) || customTeams.some(t => t.id !== id && t.code === v.code)) { alert('Ce code est déjà utilisé.'); return; }
             if (customTeams.some(t => t.id !== id && t.name.toLowerCase() === v.name.toLowerCase())) { alert('Une équipe porte déjà ce nom.'); return; }
             if (!validateCustomRoster(v.playerIds, id)) return;
-            assignCustomRoster(team, v); render(); $('customTeamSelect').value = String(id);
-            setTeamStatus(`${team.name} modifiée.`);
+            assignCustomRoster(team, v); render();
+            const scheduleMessage = refreshCustomTeamSeasonSchedule();
+            $('customTeamSelect').value = String(id);
+            setTeamStatus(`${team.name} modifiée. ${scheduleMessage}`);
         };
         $('deleteCustomTeam').onclick = () => {
             const id = Number($('customTeamSelect').value), team = customTeams.find(t => t.id === id);
@@ -1269,7 +1281,11 @@
                 return false;
             }
             seasonCalendar = { ...calendar, teams: stats, games: calendar.games, season: seasonYear };
-            seasonResults = [];
+            // Show every NBA/custom team in the standings before the first result is simulated.
+            seasonResults = stats.map(team => ({
+                ...team, played: 0, winPct: 0, ppg: 0, oppg: 0, diff: 0,
+                apg: 0, rpg: 0, spg: 0, bpg: 0, tov: 0, seed: null
+            }));
             resultsLabel = seasonLabel(seasonYear);
             playoffs = null;
             lastAwards = null;
@@ -1518,25 +1534,53 @@
             }
         }
         function ensureNextPlayoffRound() {
-            if (!playoffs || playoffs.final) return;
+            if (!playoffs || playoffs.final || !playoffs.confRounds?.West || !playoffs.confRounds?.East) return;
             const westRounds = playoffs.confRounds.West, eastRounds = playoffs.confRounds.East;
             const roundIndex = playoffs.currentRound;
             const west = westRounds[roundIndex], east = eastRounds[roundIndex];
-            if (!west || !east || !west.series.every(s => s.winner) || !east.series.every(s => s.winner)) return;
-            if (roundIndex === 0 || roundIndex === 1) {
-                const nextName = roundIndex === 0 ? 'Demi-finales de conférence' : 'Finales de conférence';
-                const makePairs = roundIndex === 0
-                    ? round => [[round.series[0].winner, round.series[1].winner], [round.series[2].winner, round.series[3].winner]]
-                    : round => [[round.series[0].winner, round.series[1].winner]];
-                westRounds.push(createPlayoffRound(roundIndex + 1, nextName, makePairs(west), 'West'));
-                eastRounds.push(createPlayoffRound(roundIndex + 1, nextName, makePairs(east), 'East'));
-                playoffs.currentRound++;
+            if (!west || !east || !Array.isArray(west.series) || !Array.isArray(east.series)) return;
+            if (!west.series.length || !east.series.length) return;
+            if (!west.series.every(s => s && s.winner) || !east.series.every(s => s && s.winner)) return;
+
+            // Detect the stage from its actual series count, not a possibly stale round index.
+            // This prevents makePairs from reading a missing series while a simulation advances.
+            const seriesCount = west.series.length;
+            if (seriesCount === 4) {
+                if (westRounds[1] || eastRounds[1]) { playoffs.currentRound = Math.max(playoffs.currentRound, 1); return; }
+                const makePairs = round => {
+                    if (round.series.length !== 4 || round.series.some(s => !s?.winner)) return null;
+                    return [[round.series[0].winner, round.series[1].winner], [round.series[2].winner, round.series[3].winner]];
+                };
+                const westPairs = makePairs(west), eastPairs = makePairs(east);
+                if (!westPairs || !eastPairs || [...westPairs, ...eastPairs].some(pair => pair.some(team => !team))) return;
+                westRounds.push(createPlayoffRound(1, 'Demi-finales de conférence', westPairs, 'West'));
+                eastRounds.push(createPlayoffRound(1, 'Demi-finales de conférence', eastPairs, 'East'));
+                playoffs.currentRound = 1;
                 selectedPlayoffGameId = null;
-                $('seasonStatus').textContent = `Toutes les séries du ${west.name.toLowerCase()} sont terminées. Place aux ${nextName.toLowerCase()}.`;
-            } else if (roundIndex === 2 && !playoffs.final) {
-                playoffs.conferenceChampions = { West: west.series[0].winner, East: east.series[0].winner };
-                const westChampion = playoffs.conferenceChampions.West, eastChampion = playoffs.conferenceChampions.East;
+                $('seasonStatus').textContent = 'Le premier tour est terminé. Place aux demi-finales de conférence.';
+                return;
+            }
+            if (seriesCount === 2) {
+                if (westRounds[2] || eastRounds[2]) { playoffs.currentRound = Math.max(playoffs.currentRound, 2); return; }
+                const makePairs = round => {
+                    if (round.series.length !== 2 || round.series.some(s => !s?.winner)) return null;
+                    return [[round.series[0].winner, round.series[1].winner]];
+                };
+                const westPairs = makePairs(west), eastPairs = makePairs(east);
+                if (!westPairs || !eastPairs || [...westPairs, ...eastPairs].some(pair => pair.some(team => !team))) return;
+                westRounds.push(createPlayoffRound(2, 'Finales de conférence', westPairs, 'West'));
+                eastRounds.push(createPlayoffRound(2, 'Finales de conférence', eastPairs, 'East'));
+                playoffs.currentRound = 2;
+                selectedPlayoffGameId = null;
+                $('seasonStatus').textContent = 'Les demi-finales sont terminées. Place aux finales de conférence.';
+                return;
+            }
+            if (seriesCount === 1) {
+                const westChampion = west.series[0]?.winner, eastChampion = east.series[0]?.winner;
+                if (!westChampion || !eastChampion) return;
+                playoffs.conferenceChampions = { West: westChampion, East: eastChampion };
                 playoffs.final = { ...createPlayoffSeries(westChampion, eastChampion, null, 3, 0), name: 'Finale NBA' };
+                playoffs.currentRound = 3;
                 selectedPlayoffGameId = null;
                 $('seasonStatus').textContent = 'Les deux champions de conférence sont qualifiés pour la Finale NBA.';
             }
@@ -1568,16 +1612,18 @@
         }
         function runPlayoffs() { initializePlayoffs(); }
         function playoffSeriesCard(series) {
-            const rows = series.games.map(game => {
-                const homeWin = game.completed && game.winnerCode === game.home.code;
-                const awayWin = game.completed && game.winnerCode === game.away.code;
-                const selected = selectedPlayoffGameId === game.id;
-                return `<button type="button" class="playoff-game completed ${selected ? 'selected' : ''} ${homeWin ? 'win' : awayWin ? 'loss' : ''}" data-playoff-game="${game.id}" aria-pressed="${selected}">
-                    <span>G${game.number} · ${esc(game.home.code)} vs ${esc(game.away.code)}</span><span class="game-score">Partie jouée · Box score</span>
-                </button>`;
-            }).join('');
-            const nextGame = !series.winner ? `<button type="button" class="playoff-game ${selectedPlayoffGameId === `${series.id}-G${series.games.length + 1}` ? 'selected' : ''}" data-playoff-game="${series.id}-G${series.games.length + 1}" ${isActivePlayoffSeries(series) ? '' : 'disabled'} aria-pressed="${selectedPlayoffGameId === `${series.id}-G${series.games.length + 1}`}>+ Match ${series.games.length + 1} <span class="game-score">À jouer</span></button>` : `<div class="srow won"><b>Gagnant : ${esc(series.winner.name)}</b></div>`;
-            return `<div class="playoff-series"><h4>${esc(series.a.name)} (${series.winsA}) — ${esc(series.b.name)} (${series.winsB})</h4>${rows}${nextGame}</div>`;
+            const winnerText = series.winner
+                ? `<div class="series-status">Série terminée · ${esc(series.winner.name)} qualifié</div>`
+                : `<div class="series-status">${series.games.length} match(s) joué(s) · Premier à 4 victoires</div>`;
+            return `<div class="playoff-series">
+                <h4>${esc(series.a.name)} — ${esc(series.b.name)}</h4>
+                <div class="series-scoreline">
+                    <span><b>${esc(series.a.code)}</b> ${esc(series.a.name)}</span>
+                    <strong aria-label="Bilan de la série">${series.winsA}–${series.winsB}</strong>
+                    <span><b>${esc(series.b.code)}</b> ${esc(series.b.name)}</span>
+                </div>
+                ${winnerText}
+            </div>`;
         }
         function isActivePlayoffSeries(series) {
             const round = activePlayoffRound();
