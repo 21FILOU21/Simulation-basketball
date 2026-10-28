@@ -9,13 +9,13 @@ let renderingLeaders = false;
 let lastRegularGameCount = 0;
 
 function teamCodeForSchedule(code) {
-  if (!window.seasonCalendar || !Array.isArray(window.seasonCalendar.teams)) return code;
-  const t = window.seasonCalendar.teams.find(x => String(x.scheduleCode || x.code) === String(code));
+  if (!seasonCalendar || !Array.isArray(seasonCalendar.teams)) return code;
+  const t = seasonCalendar.teams.find(x => String(x.scheduleCode || x.code) === String(code));
   return t ? t.code : code;
 }
 function playersForTeam(code) {
   const teamCode = teamCodeForSchedule(code);
-  return (window.players || []).filter(p => p.team === teamCode &&
+  return (players || []).filter(p => p.team === teamCode &&
     (typeof window.NBAMyNBAIsRostered !== "function" || window.NBAMyNBAIsRostered(p)));
 }
 function overall(p) {
@@ -54,7 +54,7 @@ function weightedAllocate(total, list, weightFn) {
   return out;
 }
 function updateActualStats(game) {
-  if (!game || !window.seasonCalendar) return;
+  if (!game || !seasonCalendar) return;
   const sides = [
     {code:game.home.code, score:Number(game.homeScore)||0, opp:Number(game.awayScore)||0},
     {code:game.away.code, score:Number(game.awayScore)||0, opp:Number(game.homeScore)||0}
@@ -105,7 +105,7 @@ function recoverCalendarAfterLoad() {
   const original=window.load;
   const wrapped=function() {
     const result=original.apply(this,arguments);
-    if (!window.seasonCalendar || !Array.isArray(window.seasonCalendar.games) || !window.seasonCalendar.games.length) {
+    if (!seasonCalendar || !Array.isArray(seasonCalendar.games) || !seasonCalendar.games.length) {
       if (typeof window.initializeSeasonCalendar === "function") window.initializeSeasonCalendar();
     }
     if (typeof window.renderAll === "function") window.renderAll();
@@ -147,8 +147,8 @@ function installScheduleActions() {
   view.dataset.mynbaDialogInstalled="1";
   view.addEventListener("click",event=>{
     const tile=event.target.closest("button[data-game-id]");
-    if(!tile || !window.seasonCalendar)return;
-    const game=window.seasonCalendar.games.find(g=>String(g.id)===String(tile.dataset.gameId));
+    if(!tile || !seasonCalendar)return;
+    const game=seasonCalendar.games.find(g=>String(g.id)===String(tile.dataset.gameId));
     if(!game)return;
     event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();
     scheduleDialog(game);
@@ -158,8 +158,8 @@ function renderLeaderTable() {
   const pane=$("mynbaLeaderPlayers");
   if(!pane || pane.hidden || renderingLeaders)return;
   renderingLeaders=true;
-  const current=Number(window.seasonCalendar?.games?.filter(g=>g.status==="completed").length)||0;
-  const rows=(window.players||[]).filter(p=>typeof window.NBAMyNBAIsRostered!=="function"||window.NBAMyNBAIsRostered(p)).map(p=>{
+  const current=Number(seasonCalendar?.games?.filter(g=>g.status==="completed").length)||0;
+  const rows=(players||[]).filter(p=>typeof window.NBAMyNBAIsRostered!=="function"||window.NBAMyNBAIsRostered(p)).map(p=>{
     const a=actual[String(p.id)]||{pts:0,ast:0,reb:0,stl:0,blk:0,gp:0,minutes:0};
     const gp=Number(a.gp)||0;
     return {p,gp,pts:gp?a.pts/gp:0,ast:gp?a.ast/gp:0,reb:gp?a.reb/gp:0,stl:gp?a.stl/gp:0,blk:gp?a.blk/gp:0,minutes:gp?a.minutes/gp:0,ovr:overall(p)};
@@ -247,22 +247,22 @@ function recordDevelopment() {
   if(typeof window.runOffseason!=="function" || window.runOffseason.__developmentWrapped)return;
   const original=window.runOffseason;
   const wrapped=function(){
-    const before=new Map((window.players||[]).map(p=>[String(p.id),overall(p)]));
+    const before=new Map((players||[]).map(p=>[String(p.id),overall(p)]));
     const result=original.apply(this,arguments);
-    (window.players||[]).forEach(p=>{const old=before.get(String(p.id));if(old!=null){p._mynbaOverallDelta=overall(p)-old;p._mynbaDeltaStartGames=Number(window.seasonCalendar?.games?.filter(g=>g.status==="completed").length)||0;}});
+    (players||[]).forEach(p=>{const old=before.get(String(p.id));if(old!=null){p._mynbaOverallDelta=overall(p)-old;p._mynbaDeltaStartGames=Number(seasonCalendar?.games?.filter(g=>g.status==="completed").length)||0;}});
     return result;
   };
   wrapped.__developmentWrapped=true;window.runOffseason=wrapped;
 }
 function clearOldDevelopment() {
-  const count=Number(window.seasonCalendar?.games?.filter(g=>g.status==="completed").length)||0;
-  if(window.phase==="playoffs" || (count-lastRegularGameCount)>=41 || count>=82){
-    (window.players||[]).forEach(p=>{delete p._mynbaOverallDelta;delete p._mynbaDeltaStartGames;});
+  const count=Number(seasonCalendar?.games?.filter(g=>g.status==="completed").length)||0;
+  if(phase==="playoffs" || (count-lastRegularGameCount)>=41 || count>=82){
+    (players||[]).forEach(p=>{delete p._mynbaOverallDelta;delete p._mynbaDeltaStartGames;});
   }
   lastRegularGameCount=count;
 }
 function decorateDevelopment() {
-  const people=window.players||[];
+  const people=players||[];
   document.querySelectorAll("#mynbaRosterTable tbody tr,#playerStatsSection tbody tr").forEach(row=>{
     const name=row.cells?.[1]?.textContent?.trim() || row.cells?.[0]?.textContent?.trim();
     const p=people.find(x=>x.name===name);
@@ -298,9 +298,9 @@ function start() {
       }
     },0);
   },true);
-  const observer=new MutationObserver(()=>{
+  const observer=new MutationObserver(records=>{
     hidePlayoffsCategory();installAutoMinutes();clearOldDevelopment();decorateDevelopment();
-    if($("mynbaLeaderPlayers") && !$("mynbaLeaderPlayers").hidden && !renderingLeaders)setTimeout(renderLeaderTable,0);
+    if(records.some(r=>r.type==="attributes" && r.target && r.target.id==="mynbaLeaderPlayers" && !r.target.hidden))setTimeout(renderLeaderTable,0);
   });
   observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["hidden"]});
   setTimeout(()=>{hidePlayoffsCategory();installAutoMinutes();decorateDevelopment();},0);
