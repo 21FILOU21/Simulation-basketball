@@ -1235,7 +1235,18 @@
             const defaultCode = seasonCalendar.teams[0].scheduleCode || seasonCalendar.teams[0].code;
             select.value = sortedTeams.some(team => (team.scheduleCode || team.code) === previousValue) ? previousValue : defaultCode;
             const teamCode = select.value;
-            const games = (seasonCalendar.teamSchedules[teamCode] || []).slice().sort((a, b) => a.gameNumber - b.gameNumber);
+            const games = seasonCalendar.games
+                .filter(game => game.home.code === teamCode || game.away.code === teamCode)
+                .map(game => {
+                    const isHome = game.home.code === teamCode;
+                    return {
+                        ...game,
+                        gameNumber: isHome ? game.homeGameNumber : game.awayGameNumber,
+                        isHome,
+                        opponent: isHome ? game.away : game.home
+                    };
+                })
+                .sort((a, b) => a.gameNumber - b.gameNumber);
             const completed = games.filter(game => game.status === 'completed').length;
             summary.textContent = `${completed}/${seasonCalendar.gamesPerTeam} matchs terminés · ${seasonCalendar.totalGames} matchs dans la ligue`;
             const stages = [...new Set(games.map(game => game.stage))];
