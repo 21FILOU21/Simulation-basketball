@@ -263,14 +263,29 @@ function installAutoMinutes() {
   });
 }
 function enforceMinuteCap(event) {
+  if(applyingAuto)return;
   const input=event.target;
   if(!input || !input.matches || !input.matches('input[data-plan],input[data-minutes]'))return;
+  const isPlan=input.hasAttribute("data-plan");
+  const selector=isPlan?'input[data-plan]':'input[data-minutes]';
+  const all=[...document.querySelectorAll(selector)];
   const id=input.dataset.plan || input.dataset.minutes;
-  const all=[...document.querySelectorAll('input[data-plan],input[data-minutes]')];
-  const unique=new Map();
-  all.forEach(x=>{const k=x.dataset.plan||x.dataset.minutes;if(!unique.has(k)||x===input)unique.set(k,x);});
-  let others=0;unique.forEach((x,k)=>{if(k!==id)others+=clamp(Number(x.value)||0,0,48);});
-  input.value=String(clamp(Number(input.value)||0,0,Math.min(48,Math.max(0,240-others))));
+  const others=all.filter(x=>(x.dataset.plan||x.dataset.minutes)!==id);
+  const requested=clamp(Number(input.value)||0,0,48);
+  const otherSum=others.reduce((n,x)=>n+clamp(Number(x.value)||0,0,48),0);
+  applyingAuto=true;
+  input.value=String(requested);
+  if(otherSum+Number(input.value)>240 && otherSum>0){
+    const available=Math.max(0,240-Number(input.value));
+    let used=0;
+    others.forEach((x,i)=>{
+      const old=clamp(Number(x.value)||0,0,48);
+      const v=i===others.length-1?Math.max(0,available-used):Math.floor(old*available/otherSum);
+      x.value=String(clamp(v,0,48));used+=Number(x.value)||0;
+      x.dispatchEvent(new Event("change",{bubbles:true}));
+    });
+  }
+  applyingAuto=false;
 }
 function recordDevelopment() {
   if(typeof window.runOffseason!=="function" || window.runOffseason.__developmentWrapped)return;
