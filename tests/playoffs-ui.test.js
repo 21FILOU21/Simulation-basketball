@@ -17,7 +17,7 @@ assert.match(html, /\.schedule-game\.win \.game-status[^}]*color:#39d98a/, "Vict
 assert.match(script, /\$\{ownScore\} – \$\{opponentScore\}/, "Regular-season tiles should display their score.");
 assert.match(script, /function renderSeasonAwardsPreview\(\)/, "Season awards should be prepared after the regular season.");
 assert.match(presentation, /function showAwardsFullscreen\(\)/, "The regular-season awards should use a full-screen presentation.");
-assert.match(presentation, /renderSeasonAwardsPreview\.\.original/, "The original awards renderer should be available for fallback.");
+assert.match(presentation, /renderSeasonAwardsPreview\\.__original/, "The original awards renderer should be available for fallback.");
 assert.match(presentation, /e\.key==='Enter'/, "Enter should confirm the awards and champion screens.");
 assert.match(html, /id="enterPlayoffs"/, "A touch-friendly playoffs button should exist.");
 assert.match(script, /function initializePlayoffs\(\)/, "Starting playoffs should initialize the bracket.");
