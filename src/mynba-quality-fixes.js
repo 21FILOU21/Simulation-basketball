@@ -111,7 +111,7 @@ function ensureMinimumRoster(code) {
     };
     if((players||[]).some(p=>String(p.id)===String(id))){nextId=Math.max(nextId,...(players||[]).map(p=>(Number(p.id)||0)+1));continue;}
     players.push(rookie);roster.push(rookie);
-    if(custom&&!custom.playerIds.includes(id))custom.playerIds.push(id);
+    if(custom){custom.playerIds=custom.playerIds||[];if(!custom.playerIds.includes(id))custom.playerIds.push(id);}
   }
   if(typeof nextPlayerId!=="undefined")nextPlayerId=nextId;
   if(typeof window.NBAMyNBARosterChanged==="function")window.NBAMyNBARosterChanged();
