@@ -102,7 +102,7 @@
       <h1 class="gm-title" style="font-size:clamp(32px,5vw,52px)">Fais tourner la roue.</h1>
       <p class="gm-subtitle">Chaque tour sélectionne un joueur différent. Les cinq joueurs seront ajoutés à ta nouvelle franchise sans retirer les joueurs originaux de leurs équipes NBA.</p>
       <div class="gm-progress"><span id="gmProgress"></span></div>
-      <div class="gm-wheel" id="gmWheel">MY<br>GM</div>
+      <div class="gm-wheel-stage"><span class="gm-wheel-pointer" aria-hidden="true">▼</span><div class="gm-wheel" id="gmWheel" aria-label="Roue de recrutement">MY<br>GM</div></div>
       <div class="gm-roster" id="gmRoster"></div>
       <p class="gm-status" id="gmWheelStatus">Tour 1 sur 5 : prêt à choisir ton premier joueur.</p>
       <div class="gm-actions"><button class="gm-primary" id="gmSpin">🎡 Faire tourner la roue</button></div>`;
@@ -145,12 +145,20 @@
       $("gmWheel").textContent = original.name;
       $("gmWheelStatus").textContent = "Sélection "+picks.length+"/5 : "+original.name+" ("+original.pos+").";
       renderRosterSlots();
-      if (picks.length < 5) button.disabled = false;
-      else finishTeamSetup();
+      if (picks.length < 5) {
+        button.disabled = false;
+        button.textContent = "🎡 Faire tourner la roue";
+      } else {
+        button.disabled = false;
+        button.textContent = "Continuer vers ma franchise →";
+        button.onclick = finishTeamSetup;
+        $("gmWheelStatus").textContent = "Tes cinq joueurs sont recrutés. Clique sur « Continuer » pour créer ta franchise.";
+      }
     }, 1350);
   }
   function finishTeamSetup() {
-    const button = $("gmSpin"); if (button) button.disabled = true;
+    if (picks.length !== 5) return;
+    const button = $("gmSpin"); if (button) { button.disabled = true; button.textContent = "Création de la franchise…"; }
     $("gmWheelStatus").textContent = "Création de "+setup.name+" et intégration des cinq joueurs…";
     $("customTeamName").value = setup.name;
     $("customTeamCode").value = setup.code;
@@ -179,9 +187,12 @@
     }, 300);
   }
   async function continueFromSave() {
-    setLoadingStatus("Lecture de la sauvegarde…");
-    for (let attempt = 0; attempt < 25; attempt++) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+    setLoadingStatus("Finalisation de la sauvegarde…");
+    // load() is synchronous; the imported state is already present by the time this listener runs.
+    // Wait one paint frame, then continue immediately instead of polling for 2.5 seconds.
+    await new Promise(resolve => requestAnimationFrame(() => resolve()));
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 20));
       if (!Array.isArray(players) || !players.length) continue;
       if (Array.isArray(customTeams) && customTeams.length) {
         hideOverlay();
