@@ -116,7 +116,9 @@ function recordedPlayerBox(game,sideName,code,score,opp){
  if(!lines)return playerBox(code,score,opp);
  if(typeof window.NBASimEnsureMinimumRoster==="function")window.NBASimEnsureMinimumRoster(code);
  state.rosterCache=null;
- return roster(code).map(function(p){
+ var teamEntry=typeof seasonCalendar!=="undefined"&&seasonCalendar&&seasonCalendar.teams?seasonCalendar.teams.find(function(t){return String(t.scheduleCode||t.code)===String(code);}):null;
+ var rosterCode=teamEntry?teamEntry.code:code;
+ return roster(rosterCode).map(function(p){
   var l=lines[String(p.id)]||{};
   var min=Math.max(0,Math.min(48,Number(l.minutes)||0));
   return {name:p.name,min:+min.toFixed(1),pts:Number(l.pts)||0,fgm:Number(l.fgm)||0,fga:Number(l.fga)||0,
