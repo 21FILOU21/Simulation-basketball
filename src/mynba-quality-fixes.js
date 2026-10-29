@@ -100,19 +100,40 @@ function ensureMinimumRoster(code) {
   const custom=(typeof customTeams!=="undefined"?customTeams:[]).find(t=>String(t.code)===String(actualCode));
   let roster=(players||[]).filter(p=>String(p.team)===String(actualCode));
   let nextId=typeof nextPlayerId!=="undefined"?Number(nextPlayerId):Math.max(999,...(players||[]).map(p=>Number(p.id)||0))+1;
-  let n=1;
+  const usedNames=new Set((players||[]).map(p=>String(p.name||"").toLowerCase()));
+  let pickNo=1;
   while(roster.length<5){
-    const id=nextId++;
-    const rookie={
-      id:id,name:"Rookie "+String(actualCode)+" "+n++,team:actualCode,age:19,rookie:true,
-      pos:["PG","SG","SF","PF","C"][roster.length],height:[185,193,198,205,211][roster.length],
-      weight:[80,88,94,104,112][roster.length],pts:8,reb:3.5,ast:2.2,stl:.7,blk:.4,
-      ts:.52,three:.34,mpg:48,history:[],trophies:[],
-      attributes:{finishing:58,playmaking:54,passing:54,ballHandle:55,threePoint:55,steal:48,block:48,speed:62,interiorDefense:48,perimeterDefense:50,defensiveRebound:52,offensiveRebound:50,strength:52,vertical:54,stamina:70,offensiveIQ:50,defensiveIQ:50}
-    };
-    if((players||[]).some(p=>String(p.id)===String(id))){nextId=Math.max(nextId,...(players||[]).map(p=>(Number(p.id)||0)+1));continue;}
+    // Utilise le même générateur de prospects que le vrai repêchage d'intersaison.
+    let rookie;
+    if(typeof window.makeRookie==="function" || typeof makeRookie==="function"){
+      try {
+        const factory=typeof makeRookie==="function"?makeRookie:window.makeRookie;
+        rookie=factory(.28+Math.random()*.38,actualCode,typeof resultsLabel!=="undefined"?resultsLabel:"Saison",pickNo,usedNames);
+      } catch (_) {}
+    }
+    if(!rookie){
+      const positions=["PG","SG","SF","PF","C"],pos=positions[roster.length%positions.length];
+      const first=["Malik","Jordan","Cameron","Darius","Isaiah","Jalen","Tyrese","Andre","Micah","Elijah","Nolan","Kobe","Jaylen","Marcus","Devin","Amari"];
+      const last=["Brooks","Carter","Bennett","Mitchell","Hayes","Foster","Reed","Parker","Washington","Coleman","Turner","Price","Morris","Bailey","Richardson","Young"];
+      let name;
+      do{name=first[Math.floor(Math.random()*first.length)]+" "+last[Math.floor(Math.random()*last.length)];}while(usedNames.has(name.toLowerCase()));
+      const height=[185,193,198,205,211][roster.length%5];
+      rookie={id:nextId,name,team:actualCode,pos,height,weight:[80,88,94,104,112][roster.length%5],age:19+Math.floor(Math.random()*4),rookie:true,
+        pts:4+Math.random()*8,reb:1.5+Math.random()*4,ast:1+Math.random()*3,stl:.4+Math.random()*.8,blk:.1+Math.random()*.8,
+        ts:.48+Math.random()*.08,three:.28+Math.random()*.1,mpg:10+Math.random()*14,history:[],trophies:[],careerGames:[],
+        attributes:{finishing:52+Math.round(Math.random()*20),playmaking:50+Math.round(Math.random()*20),passing:50+Math.round(Math.random()*20),ballHandle:50+Math.round(Math.random()*20),threePoint:48+Math.round(Math.random()*25),steal:45+Math.round(Math.random()*20),block:45+Math.round(Math.random()*20),speed:52+Math.round(Math.random()*20),interiorDefense:45+Math.round(Math.random()*20),perimeterDefense:45+Math.round(Math.random()*20),defensiveRebound:48+Math.round(Math.random()*20),offensiveRebound:45+Math.round(Math.random()*20),strength:48+Math.round(Math.random()*20),vertical:48+Math.round(Math.random()*20),stamina:60+Math.round(Math.random()*25),offensiveIQ:48+Math.round(Math.random()*20),defensiveIQ:48+Math.round(Math.random()*20)}};
+    }
+    rookie.id=nextId++;rookie.team=actualCode;rookie.rookie=true;rookie.age=Number(rookie.age)||19;
+    rookie.season=typeof seasonYear!=="undefined"&&typeof seasonLabel==="function"?seasonLabel(seasonYear):rookie.season;
+    rookie.source=rookie.source||"Rookie généré automatiquement pour compléter l’effectif";
+    rookie.mpg=clamp(Number(rookie.mpg)||18,8,28);
+    if(usedNames.has(String(rookie.name).toLowerCase()))rookie.name=String(rookie.name)+" "+String(actualCode);
+    usedNames.add(String(rookie.name).toLowerCase());
+    while((players||[]).some(p=>String(p.id)===String(rookie.id)))rookie.id=nextId++;
+    nextId=Math.max(nextId,Number(rookie.id)+1);
     players.push(rookie);roster.push(rookie);
-    if(custom){custom.playerIds=custom.playerIds||[];if(!custom.playerIds.includes(id))custom.playerIds.push(id);}
+    if(custom){custom.playerIds=custom.playerIds||[];if(!custom.playerIds.some(id=>String(id)===String(rookie.id)))custom.playerIds.push(rookie.id);}
+    pickNo++;
   }
   if(typeof nextPlayerId!=="undefined")nextPlayerId=nextId;
   if(typeof window.NBAMyNBARosterChanged==="function")window.NBAMyNBARosterChanged();
@@ -211,11 +232,13 @@ function renderLeaderTable() {
   const rows=(players||[]).filter(p=>typeof window.NBAMyNBAIsRostered!=="function"||window.NBAMyNBAIsRostered(p)).map(p=>{
     const a=actual[String(p.id)]||{pts:0,ast:0,reb:0,stl:0,blk:0,gp:0,minutes:0};
     const gp=Number(a.gp)||0;
-    return {p,gp,pts:gp?a.pts/gp:0,ast:gp?a.ast/gp:0,reb:gp?a.reb/gp:0,stl:gp?a.stl/gp:0,blk:gp?a.blk/gp:0,minutes:gp?a.minutes/gp:0,ovr:overall(p)};
+    const gameLines=Object.values(boxScores).map(box=>({id:box.id,line:box.players&&box.players[String(p.id)]})).filter(x=>x.line&&Number(x.line.gp||0)>=0);
+    const bestGame=gameLines.reduce((best,x)=>!best||Number(x.line.pts||0)>Number(best.line.pts||0)?x:best,null);
+    return {p,gp,pts:gp?a.pts/gp:0,totalPts:Number(a.pts)||0,bestGamePts:bestGame?Number(bestGame.line.pts)||0:0,bestGameId:bestGame?bestGame.id:"",ast:gp?a.ast/gp:0,reb:gp?a.reb/gp:0,stl:gp?a.stl/gp:0,blk:gp?a.blk/gp:0,minutes:gp?a.minutes/gp:0,ovr:overall(p)};
   });
   const sortId="mynbaActualLeaderSort";
   const old=$(sortId)?.value||"pts";
-  const options=[["pts","Points par match"],["ast","Passes par match"],["reb","Rebonds par match"],["stl","Interceptions par match"],["blk","Contres par match"],["ovr","Puissance du joueur"],["name-az","Nom A–Z"],["name-za","Nom Z–A"],["age-old","Plus âgé → moins âgé"],["age-young","Moins âgé → plus âgé"]];
+  const options=[["bestGamePts","Plus de points en un match"],["totalPts","Points cumulés"],["pts","Points par match"],["ast","Passes par match"],["reb","Rebonds par match"],["stl","Interceptions par match"],["blk","Contres par match"],["ovr","Puissance du joueur"],["name-az","Nom A–Z"],["name-za","Nom Z–A"],["age-old","Plus âgé → moins âgé"],["age-young","Moins âgé → plus âgé"]];
   const sorted=rows.slice().sort((a,b)=>{
     if(old==="name-az")return String(a.p.name).localeCompare(String(b.p.name),"fr");
     if(old==="name-za")return String(b.p.name).localeCompare(String(a.p.name),"fr");
@@ -223,7 +246,7 @@ function renderLeaderTable() {
     if(old==="age-young")return (Number(a.p.age)||0)-(Number(b.p.age)||0);
     return (Number(b[old])||0)-(Number(a[old])||0);
   });
-  pane.innerHTML='<div class="mynba-feature-card"><h2>Statistiques des matchs simulés</h2><p class="muted">Calculées sur les matchs réellement simulés dans cette saison : '+current+' matchs de ligue terminés. Les joueurs sans match joué restent à 0,0.</p><label class="field">Trier par <select id="'+sortId+'">'+options.map(o=>'<option value="'+o[0]+'" '+(o[0]===old?'selected':'')+'>'+o[1]+'</option>').join("")+'</select></label><div class="tablewrap"><table><thead><tr><th>#</th><th>Joueur</th><th>Équipe</th><th>G</th><th>MIN</th><th>PTS</th><th>AST</th><th>REB</th><th>STL</th><th>BLK</th><th>GÉN.</th></tr></thead><tbody>'+sorted.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+String(x.p.name||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))+'</td><td>'+String(x.p.team||"")+'</td><td>'+x.gp+'</td><td>'+x.minutes.toFixed(1)+'</td><td>'+x.pts.toFixed(1)+'</td><td>'+x.ast.toFixed(1)+'</td><td>'+x.reb.toFixed(1)+'</td><td>'+x.stl.toFixed(1)+'</td><td>'+x.blk.toFixed(1)+'</td><td>'+x.ovr+'</td></tr>').join("")+'</tbody></table></div></div>';
+  pane.innerHTML='<div class="mynba-feature-card"><h2>Statistiques des matchs simulés</h2><p class="muted">Calculées à partir des box scores enregistrés : '+current+' matchs de ligue terminés. Le record de points correspond au plus grand total individuel sur un seul match.</p><label class="field">Trier par <select id="'+sortId+'">'+options.map(o=>'<option value="'+o[0]+'" '+(o[0]===old?'selected':'')+'>'+o[1]+'</option>').join("")+'</select></label><div class="tablewrap"><table><thead><tr><th>#</th><th>Joueur</th><th>Équipe</th><th>G</th><th>MIN</th><th>PTS/m</th><th>PTS cumulés</th><th>Record PTS (1 match)</th><th>AST</th><th>REB</th><th>STL</th><th>BLK</th><th>GÉN.</th></tr></thead><tbody>'+sorted.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+String(x.p.name||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))+'</td><td>'+String(x.p.team||"")+'</td><td>'+x.gp+'</td><td>'+x.minutes.toFixed(1)+'</td><td>'+x.pts.toFixed(1)+'</td><td>'+x.totalPts+'</td><td><b>'+x.bestGamePts+'</b></td><td>'+x.ast.toFixed(1)+'</td><td>'+x.reb.toFixed(1)+'</td><td>'+x.stl.toFixed(1)+'</td><td>'+x.blk.toFixed(1)+'</td><td>'+x.ovr+'</td></tr>').join("")+'</tbody></table></div></div>';
   const select=$(sortId); if(select)select.onchange=renderLeaderTable;
   renderingLeaders=false;
 }
@@ -454,7 +477,23 @@ function installPlayoffRosterTracking() {
 function installDirectPlayoffs() {
   if(document.documentElement.dataset.mynbaDirectPlayoffs)return;
   document.documentElement.dataset.mynbaDirectPlayoffs="1";
-  const open=()=>setTimeout(()=>{if(typeof window.NBAMyNBAShowPlayoffs==="function")window.NBAMyNBAShowPlayoffs();},0);
+  const open=()=>setTimeout(()=>{
+    try {
+      const complete=typeof seasonCalendar!=="undefined"&&seasonCalendar&&Array.isArray(seasonCalendar.games)&&seasonCalendar.games.length>0&&seasonCalendar.games.every(g=>g.status==="completed");
+      if(complete&&typeof phase!=="undefined"&&phase!=="playoffs"){
+        phase="regular";
+        if(!playoffs&&typeof window.initializePlayoffs==="function")window.initializePlayoffs();
+        else if(!playoffs&&typeof initializePlayoffs==="function")initializePlayoffs();
+      }
+      if(typeof playoffs!=="undefined"&&playoffs&&typeof phase!=="undefined")phase="playoffs";
+      if(typeof $("seasonSection")!=="undefined"&&$("seasonSection"))$("seasonSection").hidden=true;
+      if(typeof $("seasonAwardsScreen")!=="undefined"&&$("seasonAwardsScreen"))$("seasonAwardsScreen").hidden=true;
+      if(typeof $("playoffsSection")!=="undefined"&&$("playoffsSection"))$("playoffsSection").hidden=false;
+      if(typeof window.NBAMyNBAShowPlayoffs==="function")window.NBAMyNBAShowPlayoffs();
+      if(typeof window.renderAll==="function")window.renderAll();
+      if(typeof window.NBAMyNBAShowPlayoffs==="function")window.NBAMyNBAShowPlayoffs();
+    } catch(err) { console.error("Impossible d’ouvrir les playoffs automatiquement",err); }
+  },0);
   document.addEventListener("click",event=>{if(event.target.closest("#enterPlayoffs,#season-awards-fullscreen [data-confirm]"))open();},true);
   document.addEventListener("keydown",event=>{
     if(event.key!=="Enter"||event.target&&/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(event.target.tagName))return;
