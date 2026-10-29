@@ -61,7 +61,6 @@
       const turnoverRate=clampN(.075+(100-attr(shooter.p,["ballHandle","playmaking"]))/1800+num(shooter.p.ast,0)*.0015,.035,.19);
       if(rand()<turnoverRate){
         line.tov++;totals.tov++;
-        if(rand()<.42){const thief=defender();byId.get(String(thief.p.id)).stl++;totals.stl++;}
         continue;
       }
       const threeShare=clampN(.18+(attr(shooter.p,["threePoint","shooting"])-50)*.004+(tendency.shot-50)*.0015,.08,.52);
@@ -109,6 +108,18 @@
       for(const [id,l] of extraH.lines){const old=h.lines.get(id);if(old)Object.keys(l).forEach(k=>{if(k!=="p")old[k]=(Number(old[k])||0)+(Number(l[k])||0);});}
       for(const [id,l] of extraA.lines){const old=a.lines.get(id);if(old)Object.keys(l).forEach(k=>{if(k!=="p")old[k]=(Number(old[k])||0)+(Number(l[k])||0);});}
     }
+    // Credit steals to the defending team, not to the team that committed the turnover.
+    const creditSteals=(offense,defense)=>{
+      const turnovers=[...offense.lines.values()].reduce((n,l)=>n+(Number(l.tov)||0),0);
+      const defenders=[...defense.lines.values()].filter(l=>l.minutes>0);
+      for(let i=0;i<turnovers;i++){
+        if(rand()<.31&&defenders.length){
+          const thief=pickWeighted(defenders,l=>Math.max(.01,l.minutes)*(.6+attr(l.p,["steal","perimeterDefense"])/100));
+          thief.stl++;
+        }
+      }
+    };
+    creditSteals(h,a);creditSteals(a,h);
     if(h.score===a.score){
       const homeGetsPoint=rand()<.5,side=homeGetsPoint?h:a;
       side.score++;
