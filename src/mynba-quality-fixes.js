@@ -430,6 +430,24 @@ function trimOversizedRosters() {
 }
 
 
+
+function installPlayoffRosterTracking() {
+  if(typeof window.simulateOnePlayoffGame!=="function"||window.simulateOnePlayoffGame.__attributeRosterWrapped)return;
+  const original=window.simulateOnePlayoffGame;
+  const wrapped=function(gameId){
+    if(typeof playoffs!=="undefined"&&playoffs){
+      const seriesList=[...(playoffs.confRounds?.West||[]),...(playoffs.confRounds?.East||[])].flatMap(round=>round.series||[]);
+      if(playoffs.final)seriesList.push(playoffs.final);
+      seriesList.forEach(series=>{
+        ensureMinimumRoster(series.a.code);ensureMinimumRoster(series.b.code);
+        series.a.strength=attributeTeamStrength(series.a.code);series.b.strength=attributeTeamStrength(series.b.code);
+      });
+    }
+    return original.apply(this,arguments);
+  };
+  wrapped.__attributeRosterWrapped=true;window.simulateOnePlayoffGame=wrapped;
+}
+
 function installDirectPlayoffs() {
   if(document.documentElement.dataset.mynbaDirectPlayoffs)return;
   document.documentElement.dataset.mynbaDirectPlayoffs="1";
@@ -443,7 +461,7 @@ function installDirectPlayoffs() {
 }
 
 function start() {
-  trimOversizedRosters();installGameTracking();recoverCalendarAfterLoad();installScheduleActions();installAutoMinutes();installMinuteBudget();installActualRegularBox();recordDevelopment();normalizeVisibleMinuteInputs();installDirectPlayoffs();
+  window.NBASimEnsureMinimumRoster=ensureMinimumRoster;trimOversizedRosters();installGameTracking();installPlayoffRosterTracking();recoverCalendarAfterLoad();installScheduleActions();installAutoMinutes();installMinuteBudget();installActualRegularBox();recordDevelopment();normalizeVisibleMinuteInputs();installDirectPlayoffs();
   document.addEventListener("change",enforceMinuteCap,true);
   document.addEventListener("click",event=>{
     if(event.target.closest('[data-leader-tab="players"]'))setTimeout(renderLeaderTable,0);
