@@ -22,7 +22,7 @@ function overall(p) {
   try { return typeof window.overallRating === "function" ? Number(window.overallRating(p)) || 50 : 50; }
   catch (_) { return 50; }
 }
-function weightedAllocate(total, list, weightFn) {
+function weightedAllocate(total, list, weightFn, capEach = Infinity) {
   const out = new Map();
   if (!list.length || total <= 0) return out;
   let remaining = Math.round(total);
@@ -32,9 +32,9 @@ function weightedAllocate(total, list, weightFn) {
     let capped = false;
     active.slice().forEach(p => {
       const share = remaining * Math.max(.01, weightFn(p)) / sum;
-      if (share >= 48 && active.length > 1) {
-        out.set(String(p.id), 48);
-        remaining -= 48;
+      if (share >= capEach && active.length > 1) {
+        out.set(String(p.id), capEach);
+        remaining -= capEach;
         active = active.filter(x => x !== p);
         capped = true;
       }
@@ -67,7 +67,7 @@ function updateActualStats(game) {
     let minuteSum = mins.reduce((n,x)=>n+x.m,0);
     if (minuteSum <= 0) { mins.forEach(x => x.m=48); minuteSum=mins.length*48; }
     const minuteBudget = Math.min(240, 48 * roster.length);
-    const integerMinutes = weightedAllocate(minuteBudget, roster, p => Math.max(.01, xMinutes(mins,p)));
+    const integerMinutes = weightedAllocate(minuteBudget, roster, p => Math.max(.01, xMinutes(mins,p)), 48);
     const weight = p => {
       const a = p.attributes || {};
       const tendency = typeof window.NBAMyNBATendency === "function" ? window.NBAMyNBATendency(p) : {};
