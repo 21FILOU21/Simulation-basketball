@@ -122,5 +122,25 @@
     return true;
   }
   window.NBASimAutoTendency=autoTendency;
+  // Override the legacy neutral/manual tendency provider after MyNBA initializes.
+  document.addEventListener("DOMContentLoaded",function(){
+    window.NBAMyNBATendency=autoTendency;
+  },{once:true});
+  // A fresh calendar means a fresh regular season: leaders must never carry over old totals.
+  if(typeof window.initializeSeasonCalendar==="function"&&!window.initializeSeasonCalendar.__seasonStatsResetWrapped){
+    const oldInitialize=window.initializeSeasonCalendar;
+    const wrappedInitialize=function(){
+      const result=oldInitialize.apply(this,arguments);
+      if(result!==false){
+        const stats=window.NBASimActualPlayerStats||{};
+        Object.keys(stats).forEach(k=>delete stats[k]);
+        const boxes=window.NBASimActualBoxScores||{};
+        Object.keys(boxes).forEach(k=>delete boxes[k]);
+      }
+      return result;
+    };
+    wrappedInitialize.__seasonStatsResetWrapped=true;
+    window.initializeSeasonCalendar=wrappedInitialize;
+  }
   window.simulateScheduledGame=simulateScheduledGamePossessions;
 })();
