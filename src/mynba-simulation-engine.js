@@ -121,6 +121,45 @@
     game.playerBoxScores={home:Object.fromEntries([...h.lines].map(([id,l])=>[id,{pts:l.pts,reb:l.reb,ast:l.ast,stl:l.stl,blk:l.blk,tov:l.tov,fgm:l.fgm,fga:l.fga,threeMade:l.threeMade,threeAttempts:l.threeAttempts,ftm:l.ftm,fta:l.fta,minutes:l.minutes,gp:l.gp}])),away:Object.fromEntries([...a.lines].map(([id,l])=>[id,{pts:l.pts,reb:l.reb,ast:l.ast,stl:l.stl,blk:l.blk,tov:l.tov,fgm:l.fgm,fga:l.fga,threeMade:l.threeMade,threeAttempts:l.threeAttempts,ftm:l.ftm,fta:l.fta,minutes:l.minutes,gp:l.gp}]))};
     return true;
   }
+  // Potential is a hard ceiling for displayed overall; preserve the original position-weighted calculation.
+  if(typeof window.overallRating==="function"&&!window.overallRating.__potentialCapped){
+    const oldOverall=window.overallRating;
+    const cappedOverall=function(p){
+      const raw=oldOverall.apply(this,arguments);
+      const potential=num(p&&p.attributes&&p.attributes.potential,99);
+      return Math.min(raw,clampN(potential,40,99));
+    };
+    cappedOverall.__potentialCapped=true;
+    window.overallRating=cappedOverall;
+  }
+  // More visible, age-aware offseason development, moderated by work ethic and prior-season performance.
+  if(typeof window.progress==="function"&&!window.progress.__variableGrowthWrapped){
+    const oldProgress=window.progress;
+    const variableGrowth=function(p){
+      const before=typeof window.overallRating==="function"?window.overallRating(p):50;
+      oldProgress.apply(this,arguments);
+      const age=num(p.age,27),a=p.attributes||{},work=num(a.workEthic,50),potential=num(a.potential,99);
+      const last=(Array.isArray(p.history)&&p.history.length)?p.history[p.history.length-1]:null;
+      const career=(Array.isArray(p.history)&&p.history.length)?p.history.reduce((s,h)=>s+(num(h.pts,0)+num(h.ast,0)*.8+num(h.reb,0)*.5),0)/p.history.length:0;
+      const lastScore=last?num(last.pts,0)+num(last.ast,0)*.8+num(last.reb,0)*.5:career;
+      const performance=last?clampN((lastScore-career)/35,-1,1)*.65:0;
+      const ageTrend=age<=21?1.7:age<=24?1.15:age<=28?.35:age<=31?-.05:age<=34?-.65:age<=37?-1.45:-2.35;
+      const target=clampN(ageTrend+(work-50)*.025+performance,-3.5,3.5);
+      const after=typeof window.overallRating==="function"?window.overallRating(p):before;
+      const correction=Math.round(target-(after-before));
+      if(correction!==0){
+        Object.keys(a).forEach(key=>{
+          if(key==="potential"||key==="workEthic"||key==="consistency")return;
+          a[key]=clampN(Math.round(num(a[key],50)+correction),20,99);
+        });
+      }
+      // Re-clamp every attribute and never let the effective overall exceed potential.
+      Object.keys(a).forEach(key=>{if(key!=="potential")a[key]=clampN(Math.round(num(a[key],50)),20,99);});
+      a.potential=clampN(Math.round(potential),40,99);
+    };
+    variableGrowth.__variableGrowthWrapped=true;
+    window.progress=variableGrowth;
+  }
   window.NBASimAutoTendency=autoTendency;
   // Override the legacy neutral/manual tendency provider after MyNBA initializes.
   document.addEventListener("DOMContentLoaded",function(){
