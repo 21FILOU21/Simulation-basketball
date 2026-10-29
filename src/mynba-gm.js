@@ -203,7 +203,8 @@
     const position = Math.max(0, standings.findIndex(t => t.code === team.code));
     const pickNo = position >= 0 ? position+1 : standings.length+1;
     draftPickTeam = team;
-    prospects = Array.from({length:6},(_,i) => makeRookie(Math.max(.15,.98-(pickNo-1)*.035-i*.055),team.code,resultsLabel||"MyGM",pickNo,"MyGM prospect pool"));
+    const usedProspectNames = new Set(players.map(p => p.name));
+    prospects = Array.from({length:6},(_,i) => makeRookie(Math.max(.15,.98-(pickNo-1)*.035-i*.055),team.code,resultsLabel||"MyGM",pickNo+i,usedProspectNames));
     card.innerHTML = `
       <div class="gm-brand">APRÈS LES PLAYOFFS · NBA DRAFT</div>
       <h1 class="gm-title" style="font-size:clamp(32px,5vw,52px)">À toi de choisir.</h1>
@@ -242,7 +243,7 @@
       hideOverlay();
       const note = $("customTeamStatus");
       if (note) note.textContent = "Draft terminée : "+selected.name+" rejoint "+draftPickTeam.name+".";
-    }, { once:true });
+    });
   }
   function install() {
     document.body.classList.add("gm-startup");
