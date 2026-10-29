@@ -178,17 +178,20 @@
       window.dispatchEvent(new CustomEvent("mygm:ready",{detail:{teamCode:setup.code,teamName:setup.name}}));
     }, 300);
   }
-  function continueFromSave() {
+  async function continueFromSave() {
     setLoadingStatus("Lecture de la sauvegarde…");
-    setTimeout(() => {
-      if (!Array.isArray(players) || !players.length) return;
+    for (let attempt = 0; attempt < 25; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      if (!Array.isArray(players) || !players.length) continue;
       if (Array.isArray(customTeams) && customTeams.length) {
         hideOverlay();
         if (typeof renderAll === "function") renderAll();
       } else {
         beginTeamSetup();
       }
-    }, 80);
+      return;
+    }
+    setStatus("Aucune sauvegarde valide chargée. Réessaie avec un fichier JSON exporté depuis le jeu.");
   }
   function getManagedTeam() {
     if (!Array.isArray(customTeams) || !customTeams.length) return null;
