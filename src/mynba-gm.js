@@ -4,7 +4,6 @@
   const $ = id => document.getElementById(id);
   const overlay = $("myGMStart");
   const card = $("myGMCard");
-  const status = $("gmStatus");
   let setup = { name:"", code:"", conference:"East", city:"" };
   let picks = [];
   let wheelRotation = 0;
@@ -19,7 +18,8 @@
     document.body.classList.remove("gm-startup");
     document.body.style.overflow = "";
   }
-  function setStatus(message) { if (status) status.textContent = message; }
+  function setStatus(message) { const node = $("gmStatus"); if (node) node.textContent = message; }
+  function setLoadingStatus(message) { const node = $("gmStatus"); if (node) node.innerHTML = '<span class="gm-spinner" aria-hidden="true"></span> ' + escGM(message); }
   function showWelcome() {
     overlay.hidden = false;
     document.body.classList.add("gm-startup");
@@ -41,7 +41,7 @@
       input.click();
     };
     $("gmStartDemo").onclick = async () => {
-      setStatus("Chargement des joueurs et préparation de ta franchise…");
+      setLoadingStatus("Chargement des joueurs et préparation de ta franchise…");
       const button = $("gmStartDemo"); button.disabled = true;
       await new Promise(resolve => setTimeout(resolve, 500));
       const demo = $("demo");
@@ -179,6 +179,7 @@
     }, 300);
   }
   function continueFromSave() {
+    setLoadingStatus("Lecture de la sauvegarde…");
     setTimeout(() => {
       if (!Array.isArray(players) || !players.length) return;
       if (Array.isArray(customTeams) && customTeams.length) {
