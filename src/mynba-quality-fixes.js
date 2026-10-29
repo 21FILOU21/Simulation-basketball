@@ -454,11 +454,11 @@ function installDirectPlayoffs() {
   if(document.documentElement.dataset.mynbaDirectPlayoffs)return;
   document.documentElement.dataset.mynbaDirectPlayoffs="1";
   const open=()=>setTimeout(()=>{if(typeof window.NBAMyNBAShowPlayoffs==="function")window.NBAMyNBAShowPlayoffs();},0);
-  document.addEventListener("click",event=>{if(event.target.closest("#enterPlayoffs"))open();},true);
+  document.addEventListener("click",event=>{if(event.target.closest("#enterPlayoffs,#season-awards-fullscreen [data-confirm]"))open();},true);
   document.addEventListener("keydown",event=>{
     if(event.key!=="Enter"||event.target&&/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(event.target.tagName))return;
-    const awards=$("seasonAwardsScreen");
-    if(awards&&!awards.hidden)open();
+    const awardsOverlay=$("season-awards-fullscreen"),awards=$("seasonAwardsScreen");
+    if(awardsOverlay||awards&&!awards.hidden)open();
   },true);
 }
 
