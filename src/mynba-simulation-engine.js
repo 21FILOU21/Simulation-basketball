@@ -109,7 +109,12 @@
       for(const [id,l] of extraH.lines){const old=h.lines.get(id);if(old)Object.keys(l).forEach(k=>{if(k!=="p")old[k]=(Number(old[k])||0)+(Number(l[k])||0);});}
       for(const [id,l] of extraA.lines){const old=a.lines.get(id);if(old)Object.keys(l).forEach(k=>{if(k!=="p")old[k]=(Number(old[k])||0)+(Number(l[k])||0);});}
     }
-    if(h.score===a.score){if(rand()<.5)h.score++;else a.score++;}
+    if(h.score===a.score){
+      const homeGetsPoint=rand()<.5,side=homeGetsPoint?h:a;
+      side.score++;
+      const scorer=pickWeighted([...side.lines.values()],x=>Math.max(.01,x.minutes));
+      if(scorer){scorer.pts++;scorer.ftm++;scorer.fta++;}
+    }
     game.homeScore=h.score;game.awayScore=a.score;game.status="completed";
     game.winnerCode=h.score>a.score?game.home.code:game.away.code;
     if(h.score>a.score){home.wins++;away.losses++;}else{away.wins++;home.losses++;}
@@ -161,6 +166,28 @@
     };
     variableGrowth.__variableGrowthWrapped=true;
     window.progress=variableGrowth;
+  }
+  // Use accumulated game box scores for end-of-season awards and player leaderboards.
+  if(typeof window.updateTeamSeasonAverages==="function"&&!window.updateTeamSeasonAverages.__possessionStatsWrapped){
+    const oldUpdateAverages=window.updateTeamSeasonAverages;
+    const wrappedAverages=function(){
+      const result=oldUpdateAverages.apply(this,arguments);
+      const finished=typeof seasonCalendar!=="undefined"&&seasonCalendar&&Array.isArray(seasonCalendar.games)&&seasonCalendar.games.length>0&&seasonCalendar.games.every(g=>g.status==="completed");
+      if(finished&&typeof seasonLines!=="undefined"&&seasonLines&&typeof players!=="undefined"){
+        const stats=window.NBASimActualPlayerStats||{};
+        seasonLines=new Map();
+        players.forEach(p=>{
+          const s=stats[String(p.id)];
+          if(!s||!Number(s.gp))return;
+          const gp=Number(s.gp)||0,fgm=Number(s.fgm)||0,fga=Number(s.fga)||0,threeMade=Number(s.threeMade)||0,threeAttempts=Number(s.threeAttempts)||0,ftm=Number(s.ftm)||0,fta=Number(s.fta)||0;
+          const pts=Number(s.pts)||0,reb=Number(s.reb)||0,ast=Number(s.ast)||0,stl=Number(s.stl)||0,blk=Number(s.blk)||0,tov=Number(s.tov)||0;
+          seasonLines.set(p.id,{gp,missed:Math.max(0,82-gp),pts:pts/gp,reb:reb/gp,ast:ast/gp,stl:stl/gp,blk:blk/gp,tov:tov/gp,mpg:(Number(s.minutes)||0)/gp,fgm,fga,fg:fga?fgm/fga:0,threeMade,threeAttempts,three:threeAttempts?threeMade/threeAttempts:0,ftMade:ftm,fta,ft:fta?ftm/fta:0,ts:fga+fta*.44?pts/(2*(fga+fta*.44)):0,plusMinus:0});
+        });
+      }
+      return result;
+    };
+    wrappedAverages.__possessionStatsWrapped=true;
+    window.updateTeamSeasonAverages=wrappedAverages;
   }
   window.NBASimAutoTendency=autoTendency;
   // Override the legacy neutral/manual tendency provider after MyNBA initializes.
