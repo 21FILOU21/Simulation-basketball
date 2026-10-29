@@ -1425,6 +1425,8 @@
             const select = $('scheduleTeamFilter');
             const view = $('seasonCalendarView');
             const summary = $('scheduleSummary');
+            // The calendar remains mounted during playoffs, but guard against older saves/layouts.
+            if (!select || !view || !summary) return;
             view.hidden = phase === 'playoffs';
             summary.textContent = phase === 'playoffs' ? 'Calendrier de saison régulière masqué pendant les playoffs.' : summary.textContent;
             if (!seasonCalendar || !seasonCalendar.games.length) {
