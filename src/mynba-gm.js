@@ -122,7 +122,7 @@
     const button = $("gmSpin");
     if (!button || button.disabled || picks.length >= 5) return;
     const chosenIds = new Set(picks.map(p => String(p.originalId)));
-    const pool = players.filter(p => p && p.id != null && !chosenIds.has(String(p.id)));
+    const pool = players.filter(p => p && p.id != null && !p.originalId && !chosenIds.has(String(p.id)));
     if (!pool.length) { $("gmWheelStatus").textContent = "Il n'y a plus assez de joueurs disponibles."; return; }
     button.disabled = true;
     const total = pool.reduce((sum,p) => sum + Math.max(1, typeof overallRating==="function" ? overallRating(p) : 60),0);
