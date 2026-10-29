@@ -354,6 +354,12 @@
         .gm-spinner { display:inline-block; width:13px; height:13px; border:2px solid #5c7392; border-top-color:#ffb45c; border-radius:50%; vertical-align:-2px; animation:gm-spin .7s linear infinite; }
         @keyframes gm-spin { to { transform:rotate(360deg); } }
         .gm-status { color:#b5c8e5; min-height:24px; }
+        .gm-create-action { position:fixed; z-index:99998; right:18px; bottom:18px; width:min(480px,calc(100vw - 28px)); padding:18px; border:1px solid #ffb45c; border-radius:18px; background:linear-gradient(145deg,#172a45f7,#0b1424f7); box-shadow:0 20px 65px #000b; backdrop-filter:blur(14px); }
+        .gm-create-action .gm-brand { letter-spacing:.1em; line-height:1.5; }
+        .gm-create-players { margin:10px 0 2px; color:#edf3ff; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+        .gm-create-action .gm-status { margin:8px 0; }
+        .gm-create-action .gm-primary { width:100%; min-height:48px; font-size:15px; }
+        @media(max-width:620px) { .gm-create-action { right:10px; bottom:calc(10px + env(safe-area-inset-bottom)); width:calc(100vw - 20px); padding:14px; } }
         .gm-prospects { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:18px; }
         .gm-prospect { border:1px solid #3a557a; background:#101f34; color:#f4f7ff; border-radius:12px; padding:15px; text-align:left; cursor:pointer; }
         .gm-prospect:hover { border-color:#ffb45c; }
