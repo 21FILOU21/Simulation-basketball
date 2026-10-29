@@ -23,7 +23,9 @@
     return rows[rows.length-1];
   };
   function rosterFor(code) {
-    const teamCode = typeof window.NBAMyNBATeamCodeForSchedule==="function" ? window.NBAMyNBATeamCodeForSchedule(code) : code;
+    const scheduledTeam = typeof seasonCalendar!=="undefined" && seasonCalendar && Array.isArray(seasonCalendar.teams)
+      ? seasonCalendar.teams.find(t=>String(t.scheduleCode||t.code)===String(code)) : null;
+    const teamCode = scheduledTeam ? scheduledTeam.code : code;
     const all = typeof players!=="undefined" ? players : [];
     let rows=all.filter(p=>String(p.team)===String(teamCode) &&
       (typeof window.NBAMyNBAIsRostered!=="function" || window.NBAMyNBAIsRostered(p)));
