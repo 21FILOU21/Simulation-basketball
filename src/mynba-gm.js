@@ -134,15 +134,20 @@
     });
   }
   function showCreateFranchiseStep() {
-    card.innerHTML = `
-      <div class="gm-brand">RECRUTEMENT TERMINÉ</div>
-      <h1 class="gm-title" style="font-size:clamp(32px,5vw,52px)">Ton cinq est prêt.</h1>
-      <p class="gm-subtitle">Les cinq joueurs ont été recrutés. Le menu de recrutement est fermé : crée maintenant ta franchise pour commencer ta carrière.</p>
-      <div class="gm-final-roster">${picks.map((p,i) => `
-        <div class="gm-player active"><b>${i+1}. ${escGM(p.name)}</b>${escGM(p.pos)} · GÉN ${typeof overallRating==="function"?overallRating(p):"—"}</div>
-      `).join("")}</div>
-      <div class="gm-actions"><button class="gm-primary" id="gmCreateFranchise">Créer la franchise →</button></div>
-      <p class="gm-status" id="gmCreateStatus">Prêt à créer ${escGM(setup.city)} ${escGM(setup.name)}.</p>`;
+    // Close the full-screen GM setup. Keep only a small fixed action panel over the game.
+    hideOverlay();
+    const previous = $("gmCreateAction");
+    if (previous) previous.remove();
+    const action = document.createElement("section");
+    action.id = "gmCreateAction";
+    action.className = "gm-create-action";
+    action.setAttribute("role", "status");
+    action.innerHTML = `
+      <div class="gm-brand">RECRUTEMENT TERMINÉ · CINQ DE DÉPART PRÊT</div>
+      <p class="gm-create-players">${picks.map(p => escGM(p.name)).join(" · ")}</p>
+      <p class="gm-status" id="gmCreateStatus">Prêt à créer ${escGM(setup.city)} ${escGM(setup.name)}.</p>
+      <button class="gm-primary" id="gmCreateFranchise">Créer la franchise →</button>`;
+    document.body.appendChild(action);
     $("gmCreateFranchise").onclick = finishTeamSetup;
   }
   async function spinForPlayer() {
@@ -209,6 +214,7 @@
       if (typeof render === "function") render();
       if (typeof renderAll === "function") renderAll();
       hideOverlay();
+      const createAction = $("gmCreateAction"); if (createAction) createAction.remove();
       const statusNode = $("customTeamStatus");
       if (statusNode) statusNode.textContent = "Bienvenue, GM de " + setup.city + " " + setup.name + " (" + setup.code + "). Ton cinq de départ est prêt.";
       window.dispatchEvent(new CustomEvent("mygm:ready",{detail:{teamCode:setup.code,teamName:setup.name}}));
@@ -250,6 +256,9 @@
     draftPickTeam = team;
     const usedProspectNames = new Set(players.map(p => p.name));
     prospects = Array.from({length:6},(_,i) => makeRookie(Math.max(.15,.98-(pickNo-1)*.035-i*.055),team.code,resultsLabel||"MyGM",pickNo+i,usedProspectNames));
+    overlay.hidden = false;
+    document.body.classList.add("gm-startup");
+    document.body.style.overflow = "hidden";
     card.innerHTML = `
       <div class="gm-brand">APRÈS LES PLAYOFFS · NBA DRAFT</div>
       <h1 class="gm-title" style="font-size:clamp(32px,5vw,52px)">À toi de choisir.</h1>
