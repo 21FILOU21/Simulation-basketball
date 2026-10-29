@@ -499,6 +499,7 @@ function installDirectPlayoffs() {
   const open=()=>setTimeout(()=>{
     try {
       const complete=typeof seasonCalendar!=="undefined"&&seasonCalendar&&Array.isArray(seasonCalendar.games)&&seasonCalendar.games.length>0&&seasonCalendar.games.every(g=>g.status==="completed");
+      if(complete&&typeof playoffs!=="undefined"&&!playoffs&&typeof preparePlayoffsFromCompletedCalendar==="function")preparePlayoffsFromCompletedCalendar();
       if(complete&&typeof phase!=="undefined"&&phase!=="playoffs"){
         phase="regular";
         if(!playoffs&&typeof window.initializePlayoffs==="function")window.initializePlayoffs();
