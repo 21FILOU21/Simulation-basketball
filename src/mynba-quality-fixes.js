@@ -6,6 +6,7 @@ const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const actual = window.NBASimActualPlayerStats = window.NBASimActualPlayerStats || Object.create(null);
 const boxScores = window.NBASimActualBoxScores = window.NBASimActualBoxScores || Object.create(null);
 let renderingLeaders = false;
+let applyingAuto = false;
 let lastRegularGameCount = 0;
 
 function teamCodeForSchedule(code) {
@@ -55,6 +56,26 @@ function weightedAllocate(total, list, weightFn, capEach = Infinity) {
 }
 function updateActualStats(game) {
   if (!game || !seasonCalendar) return;
+  // Prefer the possession engine's real per-player box score so player totals reconcile to the game score.
+  if (game.playerBoxScores && game.playerBoxScores.home && game.playerBoxScores.away) {
+    const gameBox = {id:String(game.id),homeCode:teamCodeForSchedule(game.home.code),awayCode:teamCodeForSchedule(game.away.code),homeScore:game.homeScore,awayScore:game.awayScore,players:{}};
+    const sides = [
+      {code:game.home.code, lines:game.playerBoxScores.home},
+      {code:game.away.code, lines:game.playerBoxScores.away}
+    ];
+    sides.forEach(side => {
+      const roster=playersForTeam(side.code);
+      roster.forEach(p => {
+        const id=String(p.id),src=side.lines[id]||{};
+        const line={pts:Number(src.pts)||0,ast:Number(src.ast)||0,reb:Number(src.reb)||0,stl:Number(src.stl)||0,blk:Number(src.blk)||0,tov:Number(src.tov)||0,minutes:Math.min(48,Number(src.minutes)||0),gp:Number(src.gp)||0,fgm:Number(src.fgm)||0,fga:Number(src.fga)||0,threeMade:Number(src.threeMade)||0,threeAttempts:Number(src.threeAttempts)||0,ftm:Number(src.ftm)||0,fta:Number(src.fta)||0};
+        const old=actual[id]||(actual[id]={pts:0,ast:0,reb:0,stl:0,blk:0,tov:0,minutes:0,gp:0,fgm:0,fga:0,threeMade:0,threeAttempts:0,ftm:0,fta:0});
+        Object.keys(line).forEach(k=>old[k]=(Number(old[k])||0)+(Number(line[k])||0));
+        gameBox.players[id]=line;
+      });
+    });
+    boxScores[String(game.id)]=gameBox;
+    return;
+  }
   const sides = [
     {code:game.home.code, score:Number(game.homeScore)||0, opp:Number(game.awayScore)||0},
     {code:game.away.code, score:Number(game.awayScore)||0, opp:Number(game.homeScore)||0}
@@ -264,12 +285,12 @@ function installActualRegularBox() {
         return roster.map(p=>{
           const l=lines[String(p.id)]||{pts:0,ast:0,reb:0,stl:0,blk:0,minutes:0};
           const pts=Number(l.pts)||0,min=clamp(Number(l.minutes)||0,0,48);
-          const fga=Math.max(0,Math.round(pts/Math.max(1.1,Number(p.ts)||.55)/2));
-          const threeA=Math.min(fga,Math.max(0,Math.round(fga*(Number(p.three)||.35))));
-          const threeM=Math.min(threeA,Math.round(pts/3*.25));
-          const fgm=Math.min(fga,Math.max(0,Math.round((pts-threeM*3)/2)));
-          const ftm=Math.max(0,pts-threeM*3-fgm*2);
-          return {name:p.name,min:min,pts:pts,fgm:fgm,fga:fga,threeM:threeM,threeA:threeA,ftm:ftm,fta:Math.max(ftm,Math.round(ftm/.75)),reb:Number(l.reb)||0,ast:Number(l.ast)||0,stl:Number(l.stl)||0,blk:Number(l.blk)||0,to:Math.max(0,Math.round((Number(l.ast)||0)*.18)),pf:Math.min(6,Math.round(min/12)),pm:Math.round((score-opp)*min/48)};
+          const fga=Math.max(0,Number.isFinite(Number(l.fga))?Number(l.fga):Math.round(pts/Math.max(1.1,Number(p.ts)||.55)/2));
+          const threeA=Math.min(fga,Math.max(0,Number.isFinite(Number(l.threeAttempts))?Number(l.threeAttempts):Math.round(fga*(Number(p.three)||.35))));
+          const threeM=Math.min(threeA,Math.max(0,Number.isFinite(Number(l.threeMade))?Number(l.threeMade):Math.round(pts/3*.25)));
+          const fgm=Math.min(fga,Math.max(0,Number.isFinite(Number(l.fgm))?Number(l.fgm):Math.round((pts-threeM*3)/2)));
+          const ftm=Math.max(0,Number.isFinite(Number(l.ftm))?Number(l.ftm):pts-threeM*3-fgm*2);
+          return {name:p.name,min:min,pts:pts,fgm:fgm,fga:fga,threeM:threeM,threeA:threeA,ftm:ftm,fta:Math.max(ftm,Number(l.fta)||Math.round(ftm/.75)),reb:Number(l.reb)||0,ast:Number(l.ast)||0,stl:Number(l.stl)||0,blk:Number(l.blk)||0,to:Number(l.tov)||Math.max(0,Math.round((Number(l.ast)||0)*.18)),pf:Number(l.pf)||Math.min(6,Math.round(min/12)),pm:Math.round((score-opp)*min/48)};
         });
       };
       game.mynbaBoxScore={home:buildRows(game.home.code,game.homeScore,game.awayScore),away:buildRows(game.away.code,game.awayScore,game.homeScore)};
