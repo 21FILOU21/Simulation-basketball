@@ -6,6 +6,7 @@ const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const actual = window.NBASimActualPlayerStats = window.NBASimActualPlayerStats || Object.create(null);
 const boxScores = window.NBASimActualBoxScores = window.NBASimActualBoxScores || Object.create(null);
 let renderingLeaders = false;
+let applyingAuto = false;
 let lastRegularGameCount = 0;
 
 function teamCodeForSchedule(code) {
