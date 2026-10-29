@@ -402,9 +402,11 @@ function decorateDevelopment() {
   document.querySelectorAll("#mynbaRosterTable tbody tr,#playerStatsSection tbody tr").forEach(row=>{
     const name=row.cells?.[1]?.textContent?.trim() || row.cells?.[0]?.textContent?.trim();
     const p=people.find(x=>x.name===name);
-    if(!p || !Number(p._mynbaOverallDelta))return;
     const cell=row.cells?.[3];
-    if(!cell || cell.querySelector(".mynba-development-delta"))return;
+    if(!cell)return;
+    const existing=cell.querySelector(".mynba-development-delta");
+    if(!p || !Number(p._mynbaOverallDelta)){if(existing)existing.remove();return;}
+    if(existing)return;
     const d=Number(p._mynbaOverallDelta),span=document.createElement("span");
     span.className="mynba-development-delta";span.style.fontWeight="900";span.style.marginLeft="6px";
     span.style.color=d>0?"#39d98a":"#ff4545";span.textContent=(d>0?"↑ +":"↓ ")+d;
