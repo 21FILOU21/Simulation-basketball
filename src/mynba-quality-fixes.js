@@ -100,7 +100,7 @@ function ensureMinimumRoster(code) {
   const custom=(typeof customTeams!=="undefined"?customTeams:[]).find(t=>String(t.code)===String(actualCode));
   let roster=(players||[]).filter(p=>String(p.team)===String(actualCode));
   let nextId=typeof nextPlayerId!=="undefined"?Number(nextPlayerId):Math.max(999,...(players||[]).map(p=>Number(p.id)||0))+1;
-  const usedNames=new Set((players||[]).map(p=>String(p.name||"").toLowerCase()));
+  const usedNames=new Set();(players||[]).forEach(p=>{const name=String(p.name||"");usedNames.add(name);usedNames.add(name.toLowerCase());});
   let pickNo=1;
   while(roster.length<5){
     // Utilise le même générateur de prospects que le vrai repêchage d'intersaison.
@@ -128,7 +128,7 @@ function ensureMinimumRoster(code) {
     rookie.source=rookie.source||"Rookie généré automatiquement pour compléter l’effectif";
     rookie.mpg=clamp(Number(rookie.mpg)||18,8,28);
     if(usedNames.has(String(rookie.name).toLowerCase()))rookie.name=String(rookie.name)+" "+String(actualCode);
-    usedNames.add(String(rookie.name).toLowerCase());
+    usedNames.add(String(rookie.name));usedNames.add(String(rookie.name).toLowerCase());
     while((players||[]).some(p=>String(p.id)===String(rookie.id)))rookie.id=nextId++;
     nextId=Math.max(nextId,Number(rookie.id)+1);
     players.push(rookie);roster.push(rookie);
@@ -237,7 +237,7 @@ function renderLeaderTable() {
     return {p,gp,pts:gp?a.pts/gp:0,totalPts:Number(a.pts)||0,bestGamePts:bestGame?Number(bestGame.line.pts)||0:0,bestGameId:bestGame?bestGame.id:"",ast:gp?a.ast/gp:0,reb:gp?a.reb/gp:0,stl:gp?a.stl/gp:0,blk:gp?a.blk/gp:0,minutes:gp?a.minutes/gp:0,ovr:overall(p)};
   });
   const sortId="mynbaActualLeaderSort";
-  const old=$(sortId)?.value||"pts";
+  const old=$(sortId)?.value||"bestGamePts";
   const options=[["bestGamePts","Plus de points en un match"],["totalPts","Points cumulés"],["pts","Points par match"],["ast","Passes par match"],["reb","Rebonds par match"],["stl","Interceptions par match"],["blk","Contres par match"],["ovr","Puissance du joueur"],["name-az","Nom A–Z"],["name-za","Nom Z–A"],["age-old","Plus âgé → moins âgé"],["age-young","Moins âgé → plus âgé"]];
   const sorted=rows.slice().sort((a,b)=>{
     if(old==="name-az")return String(a.p.name).localeCompare(String(b.p.name),"fr");
