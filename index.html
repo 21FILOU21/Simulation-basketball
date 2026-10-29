@@ -340,18 +340,26 @@
         .gm-progress { height:5px; background:#23354e; border-radius:20px; overflow:hidden; margin:18px 0; }
         .gm-progress span { display:block; width:0; height:100%; background:#ffb45c; transition:width .35s; }
         .gm-wheel-stage { position:relative; width:180px; margin:24px auto 18px; }
-        .gm-wheel { margin:0 auto; width:160px; height:160px; border-radius:50%; display:grid; place-items:center; text-align:center; font-size:18px; font-weight:950; color:#08111e; border:7px solid #e8efff; background:conic-gradient(#ffb45c 0 30deg,#5b9dff 30deg 60deg,#7ee0bb 60deg 90deg,#8f83ff 90deg 120deg,#ff7f92 120deg 150deg,#ffb45c 150deg 180deg,#5b9dff 180deg 210deg,#7ee0bb 210deg 240deg,#8f83ff 240deg 270deg,#ff7f92 270deg 300deg,#ffb45c 300deg 330deg,#5b9dff 330deg 360deg); box-shadow:0 0 0 5px #243c5b,0 15px 40px #0008,inset 0 0 0 2px #ffffff55; transition:transform 1.8s cubic-bezier(.08,.72,.12,1); will-change:transform; }
+        .gm-wheel { margin:0 auto; width:160px; height:160px; border-radius:50%; display:grid; place-items:center; text-align:center; font-size:18px; font-weight:950; color:#08111e; border:7px solid #e8efff; background:conic-gradient(#ffb45c 0 30deg,#5b9dff 30deg 60deg,#7ee0bb 60deg 90deg,#8f83ff 90deg 120deg,#ff7f92 120deg 150deg,#ffb45c 150deg 180deg,#5b9dff 180deg 210deg,#7ee0bb 210deg 240deg,#8f83ff 240deg 270deg,#ff7f92 270deg 300deg,#ffb45c 300deg 330deg,#5b9dff 330deg 360deg); box-shadow:0 0 0 5px #243c5b,0 15px 40px #0008,inset 0 0 0 2px #ffffff55; will-change:transform; }
         .gm-wheel-pointer { position:absolute; z-index:2; top:-13px; left:50%; transform:translateX(-50%); color:#ffd166; font-size:30px; line-height:1; text-shadow:0 3px 8px #000b; }
         .gm-wheel-stage:has(.gm-wheel[style*="transform"]) .gm-wheel-pointer { animation:gm-pointer-tick .16s ease-in-out infinite alternate; }
         @keyframes gm-pointer-tick { from { transform:translateX(-50%) rotate(-8deg); } to { transform:translateX(-50%) rotate(8deg); } }
         @media(prefers-reduced-motion:reduce) { .gm-wheel { transition:none; } .gm-wheel-pointer { animation:none!important; } }
         .gm-roster { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin:18px 0; }
+        .gm-final-roster { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin:24px 0; }
+        @media(max-width:620px) { .gm-final-roster { grid-template-columns:repeat(2,minmax(0,1fr)); } }
         .gm-player { border:1px solid #344c6d; border-radius:10px; padding:10px; min-height:88px; background:#0b1728; font-size:12px; overflow-wrap:anywhere; }
         .gm-player b { display:block; color:#fff; margin-bottom:5px; }
         .gm-player.active { border-color:#ffb45c; box-shadow:inset 0 0 0 1px #ffb45c; }
         .gm-spinner { display:inline-block; width:13px; height:13px; border:2px solid #5c7392; border-top-color:#ffb45c; border-radius:50%; vertical-align:-2px; animation:gm-spin .7s linear infinite; }
         @keyframes gm-spin { to { transform:rotate(360deg); } }
         .gm-status { color:#b5c8e5; min-height:24px; }
+        .gm-create-action { position:fixed; z-index:99998; right:18px; bottom:18px; width:min(480px,calc(100vw - 28px)); padding:18px; border:1px solid #ffb45c; border-radius:18px; background:linear-gradient(145deg,#172a45f7,#0b1424f7); box-shadow:0 20px 65px #000b; backdrop-filter:blur(14px); }
+        .gm-create-action .gm-brand { letter-spacing:.1em; line-height:1.5; }
+        .gm-create-players { margin:10px 0 2px; color:#edf3ff; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+        .gm-create-action .gm-status { margin:8px 0; }
+        .gm-create-action .gm-primary { width:100%; min-height:48px; font-size:15px; }
+        @media(max-width:620px) { .gm-create-action { right:10px; bottom:calc(10px + env(safe-area-inset-bottom)); width:calc(100vw - 20px); padding:14px; } }
         .gm-prospects { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:18px; }
         .gm-prospect { border:1px solid #3a557a; background:#101f34; color:#f4f7ff; border-radius:12px; padding:15px; text-align:left; cursor:pointer; }
         .gm-prospect:hover { border-color:#ffb45c; }
@@ -813,7 +821,7 @@
         }
         function normalize(raw) {
             const ids = new Set();
-            let generatedId = Math.max(1000, ...raw.map((p, i) => Number(p.id) || i + 1)) + 1;
+            let generatedId = raw.reduce((max, p, i) => Math.max(max, Number(p.id) || i + 1), 1000) + 1;
             return raw.map((p, i) => {
                 const name = p.name ?? p.player ?? 'Inconnu', pos = p.pos ?? p.position ?? '—', reb = +(p.reb ?? p.rebounds ?? 0);
                 const candidateId = Number(p.id ?? i + 1);
@@ -856,7 +864,7 @@
             seasonCalendar = null;
             if (!Array.isArray(list)) throw new Error('La base de joueurs doit être un tableau.');
             players = normalize(list);
-            nextPlayerId = Math.max(1000, ...players.map(p => (Number(p.id) || 0) + 1));
+            nextPlayerId = players.reduce((max, p) => Math.max(max, (Number(p.id) || 0) + 1), 1000);
             starters = [null, null, null, null, null]; selectedTeam = null; careerGame = null; followedPlayerId = null;
             customTeams = [];
             resetLeague();
@@ -939,16 +947,62 @@
             renderAll(); $('dataStatus').textContent = status;
         }
         function exportState() {
-            const encodeSeries = series => ({ aCode: series.a.code, bCode: series.b.code, wa: series.wa, wb: series.wb, winnerCode: series.winner.code, loserCode: series.loser.code, conf: series.conf });
+            const encodeSeries = series => series ? ({
+                aCode: series.a?.code ?? series.aCode ?? null,
+                bCode: series.b?.code ?? series.bCode ?? null,
+                wa: Number(series.wa ?? series.winsA) || 0,
+                wb: Number(series.wb ?? series.winsB) || 0,
+                winnerCode: series.winner?.code ?? series.winnerCode ?? null,
+                loserCode: series.loser?.code ?? series.loserCode ?? null,
+                conf: series.conf ?? null
+            }) : null;
+            const encodePlayoffGame = game => ({
+                ...game,
+                homeCode: game.home?.code ?? game.homeCode ?? null,
+                awayCode: game.away?.code ?? game.awayCode ?? null,
+                home: undefined,
+                away: undefined
+            });
+            const encodeCurrentSeries = series => series ? ({
+                ...encodeSeries(series),
+                winsA: Number(series.winsA ?? series.wa) || 0,
+                winsB: Number(series.winsB ?? series.wb) || 0,
+                games: (series.games || []).map(encodePlayoffGame)
+            }) : null;
+            let savedPlayoffs = null;
+            if (playoffs) {
+                if (playoffs.confRounds) {
+                    const encodeRounds = rounds => (rounds || []).map(round => ({
+                        name: round.name,
+                        index: round.index,
+                        conf: round.conf,
+                        series: (round.series || []).map(encodeCurrentSeries)
+                    }));
+                    savedPlayoffs = {
+                        confRounds: {
+                            West: encodeRounds(playoffs.confRounds.West),
+                            East: encodeRounds(playoffs.confRounds.East)
+                        },
+                        currentRound: Number(playoffs.currentRound) || 0,
+                        championCode: playoffs.champion?.code ?? null,
+                        runnerUpCode: playoffs.runnerUp?.code ?? null,
+                        final: encodeCurrentSeries(playoffs.final)
+                    };
+                } else {
+                    savedPlayoffs = {
+                        rounds: (playoffs.rounds || []).map(round => ({ name: round.name, series: (round.series || []).map(encodeSeries) })),
+                        championCode: playoffs.champion?.code ?? null,
+                        runnerUpCode: playoffs.runnerUp?.code ?? null,
+                        final: encodeSeries(playoffs.final)
+                    };
+                }
+            }
             const data = {
-                format: 'nba-sim-lab-save', version: 3, seasonYear, phase, resultsLabel, nextPlayerId, followedPlayerId, players, seasonCalendar,
+                format: 'nba-sim-lab-save', version: 4, seasonYear, phase, resultsLabel, nextPlayerId, followedPlayerId, players, seasonCalendar,
                 customTeams, nextCustomTeamId, history, retired, lastAwards, lastOffseason,
                 lastDraft: lastDraft ? { season: lastDraft.season, rows: lastDraft.rows.map(row => ({ ...row, player: undefined, playerId: row.player.id })) } : null,
                 seasonResults, seasonLines: Object.fromEntries(seasonLines), seasonStatHistory,
-                playoffs: playoffs ? {
-                    rounds: playoffs.rounds.map(round => ({ name: round.name, series: round.series.map(encodeSeries) })),
-                    championCode: playoffs.champion.code, runnerUpCode: playoffs.runnerUp.code, final: encodeSeries(playoffs.final)
-                } : null
+                playoffs: savedPlayoffs
             };
             download(JSON.stringify(data, null, 2), `nba_sim_lab_save_${seasonLabel(seasonYear)}.json`, 'application/json;charset=utf-8');
         }
@@ -2083,20 +2137,84 @@
             download(body, 'nba_stats_' + seasonLabel(seasonYear) + '.txt', 'text/plain;charset=utf-8');
         };
         $('exportSave').onclick = exportState;
-        $('importFile').onchange = async e => {
-            const f = e.target.files[0]; if (!f) return;
+        async function parseSaveJsonFile(file) {
+            const sourceText = await file.text();
+            // Parse large files in a Worker so JSON.parse does not freeze the interface.
+            if (typeof Worker === 'undefined' || typeof URL.createObjectURL !== 'function') return JSON.parse(sourceText);
+            const workerSource = `
+                self.onmessage = event => {
+                    try { self.postMessage({ ok: true, value: JSON.parse(event.data) }); }
+                    catch (error) { self.postMessage({ ok: false, error: error && error.message ? error.message : 'JSON invalide' }); }
+                };
+            `;
+            let workerUrl = null, worker = null;
             try {
-                // Let the MyGM loading indicator paint before parsing large save files.
-                if (typeof window !== 'undefined') {
-                    const gmStatus = document.getElementById('gmStatus');
-                    if (gmStatus) gmStatus.innerHTML = '<span class="gm-spinner" aria-hidden="true"></span> Lecture de la sauvegarde…';
-                    await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+                workerUrl = URL.createObjectURL(new Blob([workerSource], { type: 'text/javascript' }));
+                worker = new Worker(workerUrl);
+            } catch (error) {
+                if (workerUrl) URL.revokeObjectURL(workerUrl);
+                // Some browser policies block Blob workers; preserve compatibility by falling back.
+                return JSON.parse(sourceText);
+            }
+            return new Promise((resolve, reject) => {
+                let finished = false;
+                const cleanup = () => {
+                    if (finished) return;
+                    finished = true;
+                    worker.terminate();
+                    URL.revokeObjectURL(workerUrl);
+                };
+                worker.onmessage = event => {
+                    cleanup();
+                    if (event.data && event.data.ok) resolve(event.data.value);
+                    else reject(new Error(event.data && event.data.error || 'Le fichier JSON est invalide.'));
+                };
+                worker.onerror = () => {
+                    cleanup();
+                    try { resolve(JSON.parse(sourceText)); }
+                    catch (parseError) { reject(parseError); }
+                };
+                try { worker.postMessage(sourceText); }
+                catch (error) {
+                    cleanup();
+                    try { resolve(JSON.parse(sourceText)); }
+                    catch (parseError) { reject(parseError); }
                 }
-                const data = JSON.parse(await f.text());
-                const list = Array.isArray(data) ? data : data?.players;
-                if (!Array.isArray(list)) throw Error('Le JSON doit contenir un tableau de joueurs (ou une sauvegarde NBA Sim Lab).');
-                load(list, `Import réussi : ${list.length} joueurs depuis ${f.name}. Attributs manquants migrés automatiquement.`, Array.isArray(data) ? null : data);
-            } catch (err) { alert('Import impossible : ' + err.message + '\nFormat attendu : tableau JSON de joueurs ou sauvegarde NBA Sim Lab exportée.'); }
+            });
+        }
+        $('importFile').onchange = async e => {
+            const f = e.target.files && e.target.files[0];
+            if (!f) return;
+            const gmStatus = document.getElementById('gmStatus');
+            const setImportStatus = message => {
+                const target = document.getElementById('gmStatus');
+                if (target) target.innerHTML = '<span class="gm-spinner" aria-hidden="true"></span> ' + esc(message);
+                const dataStatus = document.getElementById('dataStatus');
+                if (dataStatus) dataStatus.textContent = message;
+            };
+            try {
+                setImportStatus('Lecture de la sauvegarde (' + (f.size / (1024 * 1024)).toFixed(1) + ' Mo)…');
+                await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+                const data = await parseSaveJsonFile(f);
+                const list = Array.isArray(data) ? data : data && data.players;
+                if (!Array.isArray(list)) throw Error('Le JSON doit contenir un tableau de joueurs (ou une sauvegarde NBA Sim Lab exportée).');
+                if (!list.length) throw Error('La sauvegarde ne contient aucun joueur.');
+                setImportStatus('Initialisation de ' + list.length.toLocaleString('fr-CA') + ' joueurs et de la saison…');
+                await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+                load(list, 'Import réussi : ' + list.length + ' joueurs depuis ' + f.name + '.', Array.isArray(data) ? null : data);
+                document.dispatchEvent(new CustomEvent('mynba:save-load-result', { detail: { ok: true, players: list.length, hasCustomTeams: Array.isArray(customTeams) && customTeams.length > 0 } }));
+            } catch (err) {
+                const message = err && err.message ? err.message : String(err);
+                document.dispatchEvent(new CustomEvent('mynba:save-load-result', { detail: { ok: false, error: message } }));
+                if (gmStatus) {
+                    const target = document.getElementById('gmStatus');
+                    if (target) target.textContent = 'Échec du chargement : ' + message;
+                } else {
+                    alert('Import impossible : ' + message + '\\nFormat attendu : tableau JSON de joueurs ou sauvegarde NBA Sim Lab exportée.');
+                }
+                const dataStatus = document.getElementById('dataStatus');
+                if (dataStatus) dataStatus.textContent = 'Échec de l’import : ' + message;
+            }
         };
         function download(content, name, type) {
             const a = document.createElement('a'), url = URL.createObjectURL(new Blob([content], { type }));

@@ -118,7 +118,39 @@
     }).join("");
     const progress = $("gmProgress"); if (progress) progress.style.width = (picks.length*20)+"%";
   }
-  function spinForPlayer() {
+  function animateWheel(wheel, from, to, duration = 2400) {
+    // Animate frame by frame instead of relying on CSS transitions: the app's
+    // global reduced-motion rule can otherwise reduce transitions to 0.01 ms.
+    return new Promise(resolve => {
+      const startedAt = performance.now();
+      const tick = now => {
+        const raw = Math.min(1, (now - startedAt) / duration);
+        const eased = 1 - Math.pow(1 - raw, 4);
+        wheel.style.transform = "rotate(" + (from + (to - from) * eased) + "deg)";
+        if (raw < 1) requestAnimationFrame(tick);
+        else resolve();
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+  function showCreateFranchiseStep() {
+    // Close the full-screen GM setup. Keep only a small fixed action panel over the game.
+    hideOverlay();
+    const previous = $("gmCreateAction");
+    if (previous) previous.remove();
+    const action = document.createElement("section");
+    action.id = "gmCreateAction";
+    action.className = "gm-create-action";
+    action.setAttribute("role", "status");
+    action.innerHTML = `
+      <div class="gm-brand">RECRUTEMENT TERMINÉ · CINQ DE DÉPART PRÊT</div>
+      <p class="gm-create-players">${picks.map(p => escGM(p.name)).join(" · ")}</p>
+      <p class="gm-status" id="gmCreateStatus">Prêt à créer ${escGM(setup.city)} ${escGM(setup.name)}.</p>
+      <button class="gm-primary" id="gmCreateFranchise">Créer la franchise →</button>`;
+    document.body.appendChild(action);
+    $("gmCreateFranchise").onclick = finishTeamSetup;
+  }
+  async function spinForPlayer() {
     const button = $("gmSpin");
     if (!button || button.disabled || picks.length >= 5) return;
     const chosenIds = new Set(picks.map(p => String(p.originalId)));
@@ -128,38 +160,39 @@
     const total = pool.reduce((sum,p) => sum + Math.max(1, typeof overallRating==="function" ? overallRating(p) : 60),0);
     let n = Math.random()*total, original = pool[pool.length-1];
     for (const p of pool) { n -= Math.max(1, typeof overallRating==="function" ? overallRating(p) : 60); if (n <= 0) { original=p; break; } }
-    wheelRotation += 5*360 + 180 + Math.random()*540;
-    $("gmWheel").style.transform = "rotate("+wheelRotation+"deg)";
-    $("gmWheel").textContent = "🎡";
-    setTimeout(() => {
-      const clone = JSON.parse(JSON.stringify(original));
-      clone.originalId = original.id;
-      clone.id = typeof nextPlayerId !== "undefined" ? nextPlayerId++ : Date.now()+picks.length;
-      clone.previousTeam = original.team;
-      clone.team = "FA";
-      clone.history = Array.isArray(clone.history) ? clone.history : [];
-      clone.trophies = Array.isArray(clone.trophies) ? clone.trophies : [];
-      clone.careerGames = Array.isArray(clone.careerGames) ? clone.careerGames : [];
-      players.push(clone);
-      picks.push(clone);
-      $("gmWheel").textContent = original.name;
-      $("gmWheelStatus").textContent = "Sélection "+picks.length+"/5 : "+original.name+" ("+original.pos+").";
-      renderRosterSlots();
-      if (picks.length < 5) {
-        button.disabled = false;
-        button.textContent = "🎡 Faire tourner la roue";
-      } else {
-        button.disabled = false;
-        button.textContent = "Continuer vers ma franchise →";
-        button.onclick = finishTeamSetup;
-        $("gmWheelStatus").textContent = "Tes cinq joueurs sont recrutés. Clique sur « Continuer » pour créer ta franchise.";
-      }
-    }, 1350);
+    const wheel = $("gmWheel");
+    if (!wheel) { button.disabled = false; return; }
+    const startRotation = wheelRotation;
+    wheelRotation += 6*360 + 180 + Math.random()*360;
+    wheel.textContent = "🎡";
+    $("gmWheelStatus").textContent = "La roue tourne…";
+    await animateWheel(wheel, startRotation, wheelRotation, 2400);
+    const clone = JSON.parse(JSON.stringify(original));
+    clone.originalId = original.id;
+    clone.id = typeof nextPlayerId !== "undefined" ? nextPlayerId++ : Date.now()+picks.length;
+    clone.previousTeam = original.team;
+    clone.team = "FA";
+    clone.history = Array.isArray(clone.history) ? clone.history : [];
+    clone.trophies = Array.isArray(clone.trophies) ? clone.trophies : [];
+    clone.careerGames = Array.isArray(clone.careerGames) ? clone.careerGames : [];
+    players.push(clone);
+    picks.push(clone);
+    wheel.textContent = original.name;
+    $("gmWheelStatus").textContent = "Sélection " + picks.length + "/5 : " + original.name + " (" + original.pos + ").";
+    renderRosterSlots();
+    if (picks.length < 5) {
+      button.disabled = false;
+      button.textContent = "🎡 Faire tourner la roue";
+    } else {
+      showCreateFranchiseStep();
+    }
   }
   function finishTeamSetup() {
     if (picks.length !== 5) return;
-    const button = $("gmSpin"); if (button) { button.disabled = true; button.textContent = "Création de la franchise…"; }
-    $("gmWheelStatus").textContent = "Création de "+setup.name+" et intégration des cinq joueurs…";
+    const button = $("gmCreateFranchise") || $("gmSpin");
+    const status = $("gmCreateStatus") || $("gmWheelStatus");
+    if (button) { button.disabled = true; button.textContent = "Création de la franchise…"; }
+    if (status) status.textContent = "Création de " + setup.name + " et intégration des cinq joueurs…";
     $("customTeamName").value = setup.name;
     $("customTeamCode").value = setup.code;
     $("customTeamCity").value = setup.city;
@@ -172,7 +205,7 @@
     setTimeout(() => {
       const exists = typeof customTeams !== "undefined" && customTeams.some(t => t.code === setup.code);
       if (!exists) {
-        $("gmWheelStatus").textContent = "Impossible de créer l'équipe. Vérifie le code et réessaie.";
+        if (status) status.textContent = "Impossible de créer l'équipe. Vérifie le code et réessaie.";
         if (button) { button.disabled = false; button.textContent = "Réessayer"; button.onclick = finishTeamSetup; }
         return;
       }
@@ -181,28 +214,28 @@
       if (typeof render === "function") render();
       if (typeof renderAll === "function") renderAll();
       hideOverlay();
+      const createAction = $("gmCreateAction"); if (createAction) createAction.remove();
       const statusNode = $("customTeamStatus");
-      if (statusNode) statusNode.textContent = "Bienvenue, GM de "+setup.city+" "+setup.name+" ("+setup.code+"). Ton cinq de départ est prêt.";
+      if (statusNode) statusNode.textContent = "Bienvenue, GM de " + setup.city + " " + setup.name + " (" + setup.code + "). Ton cinq de départ est prêt.";
       window.dispatchEvent(new CustomEvent("mygm:ready",{detail:{teamCode:setup.code,teamName:setup.name}}));
     }, 300);
   }
-  async function continueFromSave() {
-    setLoadingStatus("Finalisation de la sauvegarde…");
-    // load() is synchronous; the imported state is already present by the time this listener runs.
-    // Wait one paint frame, then continue immediately instead of polling for 2.5 seconds.
-    await new Promise(resolve => requestAnimationFrame(() => resolve()));
-    for (let attempt = 0; attempt < 5; attempt++) {
-      await new Promise(resolve => setTimeout(resolve, 20));
-      if (!Array.isArray(players) || !players.length) continue;
-      if (Array.isArray(customTeams) && customTeams.length) {
-        hideOverlay();
-        if (typeof renderAll === "function") renderAll();
-      } else {
-        beginTeamSetup();
-      }
+  function handleSaveLoadResult(event) {
+    const result = event.detail || {};
+    if (!result.ok) {
+      setStatus("Échec du chargement : " + (result.error || "fichier JSON invalide."));
       return;
     }
-    setStatus("Aucune sauvegarde valide chargée. Réessaie avec un fichier JSON exporté depuis le jeu.");
+    if (!Array.isArray(players) || !players.length) {
+      setStatus("La sauvegarde ne contient aucun joueur.");
+      return;
+    }
+    // load() already rendered the imported state. Do not call renderAll a second time.
+    if (Array.isArray(customTeams) && customTeams.length) {
+      hideOverlay();
+    } else {
+      beginTeamSetup();
+    }
   }
   function getManagedTeam() {
     if (!Array.isArray(customTeams) || !customTeams.length) return null;
@@ -223,6 +256,9 @@
     draftPickTeam = team;
     const usedProspectNames = new Set(players.map(p => p.name));
     prospects = Array.from({length:6},(_,i) => makeRookie(Math.max(.15,.98-(pickNo-1)*.035-i*.055),team.code,resultsLabel||"MyGM",pickNo+i,usedProspectNames));
+    overlay.hidden = false;
+    document.body.classList.add("gm-startup");
+    document.body.style.overflow = "hidden";
     card.innerHTML = `
       <div class="gm-brand">APRÈS LES PLAYOFFS · NBA DRAFT</div>
       <h1 class="gm-title" style="font-size:clamp(32px,5vw,52px)">À toi de choisir.</h1>
@@ -267,8 +303,7 @@
     document.body.classList.add("gm-startup");
     document.body.style.overflow = "hidden";
     showWelcome();
-    const importInput = $("importFile");
-    if (importInput) importInput.addEventListener("change",continueFromSave);
+    document.addEventListener("mynba:save-load-result", handleSaveLoadResult);
     document.addEventListener("click",event => {
       const button = event.target.closest("#runOffseason");
       if (!button || !overlay.hidden) return;
