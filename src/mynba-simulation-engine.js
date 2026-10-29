@@ -183,6 +183,7 @@
           const pts=Number(s.pts)||0,reb=Number(s.reb)||0,ast=Number(s.ast)||0,stl=Number(s.stl)||0,blk=Number(s.blk)||0,tov=Number(s.tov)||0;
           seasonLines.set(p.id,{gp,missed:Math.max(0,82-gp),pts:pts/gp,reb:reb/gp,ast:ast/gp,stl:stl/gp,blk:blk/gp,tov:tov/gp,mpg:(Number(s.minutes)||0)/gp,fgm,fga,fg:fga?fgm/fga:0,threeMade,threeAttempts,three:threeAttempts?threeMade/threeAttempts:0,ftMade:ftm,fta,ft:fta?ftm/fta:0,ts:fga+fta*.44?pts/(2*(fga+fta*.44)):0,plusMinus:0});
         });
+        if(typeof window.renderSeasonAwardsPreview==="function")window.renderSeasonAwardsPreview();
       }
       return result;
     };
