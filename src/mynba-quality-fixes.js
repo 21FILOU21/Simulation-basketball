@@ -56,6 +56,26 @@ function weightedAllocate(total, list, weightFn, capEach = Infinity) {
 }
 function updateActualStats(game) {
   if (!game || !seasonCalendar) return;
+  // Prefer the possession engine's real per-player box score so player totals reconcile to the game score.
+  if (game.playerBoxScores && game.playerBoxScores.home && game.playerBoxScores.away) {
+    const gameBox = {id:String(game.id),homeCode:teamCodeForSchedule(game.home.code),awayCode:teamCodeForSchedule(game.away.code),homeScore:game.homeScore,awayScore:game.awayScore,players:{}};
+    const sides = [
+      {code:game.home.code, lines:game.playerBoxScores.home},
+      {code:game.away.code, lines:game.playerBoxScores.away}
+    ];
+    sides.forEach(side => {
+      const roster=playersForTeam(side.code);
+      roster.forEach(p => {
+        const id=String(p.id),src=side.lines[id]||{};
+        const line={pts:Number(src.pts)||0,ast:Number(src.ast)||0,reb:Number(src.reb)||0,stl:Number(src.stl)||0,blk:Number(src.blk)||0,tov:Number(src.tov)||0,minutes:Math.min(48,Number(src.minutes)||0),gp:Number(src.gp)||0,fgm:Number(src.fgm)||0,fga:Number(src.fga)||0,threeMade:Number(src.threeMade)||0,threeAttempts:Number(src.threeAttempts)||0,ftm:Number(src.ftm)||0,fta:Number(src.fta)||0};
+        const old=actual[id]||(actual[id]={pts:0,ast:0,reb:0,stl:0,blk:0,tov:0,minutes:0,gp:0,fgm:0,fga:0,threeMade:0,threeAttempts:0,ftm:0,fta:0});
+        Object.keys(line).forEach(k=>old[k]=(Number(old[k])||0)+(Number(line[k])||0));
+        gameBox.players[id]=line;
+      });
+    });
+    boxScores[String(game.id)]=gameBox;
+    return;
+  }
   const sides = [
     {code:game.home.code, score:Number(game.homeScore)||0, opp:Number(game.awayScore)||0},
     {code:game.away.code, score:Number(game.awayScore)||0, opp:Number(game.homeScore)||0}
