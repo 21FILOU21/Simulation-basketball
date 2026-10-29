@@ -474,6 +474,25 @@ function installPlayoffRosterTracking() {
   wrapped.__attributeRosterWrapped=true;window.simulateOnePlayoffGame=wrapped;
 }
 
+function preparePlayoffsFromCompletedCalendar(){
+  if(typeof seasonCalendar==="undefined"||!seasonCalendar||!Array.isArray(seasonCalendar.games)||!seasonCalendar.games.length||seasonCalendar.games.some(g=>g.status!=="completed"))return false;
+  if(typeof playoffs!=="undefined"&&playoffs)return true;
+  if(!Array.isArray(seasonCalendar.teams)||seasonCalendar.teams.length<16)return false;
+  const rows=seasonCalendar.teams.map(t=>{
+    const played=(Number(t.wins)||0)+(Number(t.losses)||0),games=Math.max(1,played);
+    return {code:t.code,name:t.name,conference:t.conference,custom:!!t.custom,strength:Number(t.strength)||.5,wins:Number(t.wins)||0,losses:Number(t.losses)||0,played:played,winPct:played?(Number(t.wins)||0)/played:0,ppg:(Number(t.points)||0)/games,oppg:(Number(t.oppPoints)||0)/games,diff:played?((Number(t.points)||0)-(Number(t.oppPoints)||0))/played:0,apg:(Number(t.assists)||0)/games,rpg:(Number(t.rebounds)||0)/games,spg:(Number(t.steals)||0)/games,bpg:(Number(t.blocks)||0)/games,tov:(Number(t.turnovers)||0)/games,seed:null};
+  });
+  ["East","West"].forEach(conf=>rows.filter(t=>t.conference===conf).sort((a,b)=>b.wins-a.wins||b.diff-a.diff).forEach((t,i)=>t.seed=i<8?i+1:null));
+  if(rows.filter(t=>t.conference==="East"&&t.seed).length<8||rows.filter(t=>t.conference==="West"&&t.seed).length<8){
+    const status=$("seasonStatus");if(status)status.textContent="Impossible de créer les playoffs : il faut au moins 8 équipes dans chaque conférence.";
+    return false;
+  }
+  seasonResults=rows;
+  if(typeof phase!=="undefined")phase="regular";
+  if(typeof initializePlayoffs==="function")initializePlayoffs();
+  return !!(typeof playoffs!=="undefined"&&playoffs);
+}
+window.NBAMyNBAPreparePlayoffs=preparePlayoffsFromCompletedCalendar;
 function installDirectPlayoffs() {
   if(document.documentElement.dataset.mynbaDirectPlayoffs)return;
   document.documentElement.dataset.mynbaDirectPlayoffs="1";
