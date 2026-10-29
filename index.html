@@ -339,7 +339,12 @@
         .gm-field input,.gm-field select { width:100%; border:1px solid #405a7b; background:#091322; color:#f4f7ff; padding:12px; border-radius:9px; font:inherit; }
         .gm-progress { height:5px; background:#23354e; border-radius:20px; overflow:hidden; margin:18px 0; }
         .gm-progress span { display:block; width:0; height:100%; background:#ffb45c; transition:width .35s; }
-        .gm-wheel { margin:22px auto; width:150px; height:150px; border-radius:50%; display:grid; place-items:center; text-align:center; font-size:18px; font-weight:900; color:#08111e; border:7px solid #e8efff; background:conic-gradient(#ffb45c 0 60deg,#5b9dff 60deg 120deg,#7ee0bb 120deg 180deg,#8f83ff 180deg 240deg,#ff7f92 240deg 300deg,#ffb45c 300deg); box-shadow:0 0 0 5px #243c5b,0 15px 40px #0008; transition:transform 1.3s cubic-bezier(.12,.75,.15,1); }
+        .gm-wheel-stage { position:relative; width:180px; margin:24px auto 18px; }
+        .gm-wheel { margin:0 auto; width:160px; height:160px; border-radius:50%; display:grid; place-items:center; text-align:center; font-size:18px; font-weight:950; color:#08111e; border:7px solid #e8efff; background:conic-gradient(#ffb45c 0 30deg,#5b9dff 30deg 60deg,#7ee0bb 60deg 90deg,#8f83ff 90deg 120deg,#ff7f92 120deg 150deg,#ffb45c 150deg 180deg,#5b9dff 180deg 210deg,#7ee0bb 210deg 240deg,#8f83ff 240deg 270deg,#ff7f92 270deg 300deg,#ffb45c 300deg 330deg,#5b9dff 330deg 360deg); box-shadow:0 0 0 5px #243c5b,0 15px 40px #0008,inset 0 0 0 2px #ffffff55; transition:transform 1.8s cubic-bezier(.08,.72,.12,1); will-change:transform; }
+        .gm-wheel-pointer { position:absolute; z-index:2; top:-13px; left:50%; transform:translateX(-50%); color:#ffd166; font-size:30px; line-height:1; text-shadow:0 3px 8px #000b; }
+        .gm-wheel-stage:has(.gm-wheel[style*="transform"]) .gm-wheel-pointer { animation:gm-pointer-tick .16s ease-in-out infinite alternate; }
+        @keyframes gm-pointer-tick { from { transform:translateX(-50%) rotate(-8deg); } to { transform:translateX(-50%) rotate(8deg); } }
+        @media(prefers-reduced-motion:reduce) { .gm-wheel { transition:none; } .gm-wheel-pointer { animation:none!important; } }
         .gm-roster { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin:18px 0; }
         .gm-player { border:1px solid #344c6d; border-radius:10px; padding:10px; min-height:88px; background:#0b1728; font-size:12px; overflow-wrap:anywhere; }
         .gm-player b { display:block; color:#fff; margin-bottom:5px; }
@@ -2081,6 +2086,12 @@
         $('importFile').onchange = async e => {
             const f = e.target.files[0]; if (!f) return;
             try {
+                // Let the MyGM loading indicator paint before parsing large save files.
+                if (typeof window !== 'undefined') {
+                    const gmStatus = document.getElementById('gmStatus');
+                    if (gmStatus) gmStatus.innerHTML = '<span class="gm-spinner" aria-hidden="true"></span> Lecture de la sauvegarde…';
+                    await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+                }
                 const data = JSON.parse(await f.text());
                 const list = Array.isArray(data) ? data : data?.players;
                 if (!Array.isArray(list)) throw Error('Le JSON doit contenir un tableau de joueurs (ou une sauvegarde NBA Sim Lab).');
