@@ -909,10 +909,20 @@
 
         /* ---------- Force d’équipe (commune NBA / personnalisée) ---------- */
         function strengthOf(list) {
-            const top = [...list].sort((a, b) => b.pts - a.pts).slice(0, 5);
-            while (top.length < 5) top.push({ pts: 11, reb: 4, ast: 3, ts: .55 });
-            const avg = k => top.reduce((s, p) => s + p[k], 0) / 5;
-            return clamp(.47 + (avg('pts') - 12) * .008 + (avg('ast') - 3) * .006 + (avg('reb') - 4.5) * .004 + (avg('ts') - .55) * .35, .28, .80);
+            const skill = p => {
+                const a = p.attributes || {};
+                const read = (keys, fallback = 50) => keys.reduce((sum, key) => sum + (Number(a[key]) || fallback), 0) / keys.length;
+                const overall = typeof overallRating === 'function' ? Number(overallRating(p)) || 50 : 50;
+                const offense = read(['finishing', 'threePoint', 'playmaking', 'passing', 'ballHandle']);
+                const defense = read(['interiorDefense', 'perimeterDefense', 'steal', 'block', 'defensiveRebound']);
+                const physical = read(['speed', 'strength', 'vertical', 'stamina']);
+                const efficiency = Math.max(30, Math.min(90, (Number(p.ts) || .52) * 100));
+                return overall * .42 + offense * .25 + defense * .20 + physical * .08 + efficiency * .05;
+            };
+            const top = [...list].sort((a, b) => skill(b) - skill(a)).slice(0, 5);
+            while (top.length < 5) top.push({ pts: 8, reb: 3, ast: 2, ts: .52, attributes: { finishing: 55, threePoint: 55, playmaking: 50, passing: 50, ballHandle: 50, interiorDefense: 50, perimeterDefense: 50, steal: 50, block: 50, defensiveRebound: 50, speed: 55, strength: 50, vertical: 50, stamina: 60 } });
+            const averageRating = top.reduce((sum, p) => sum + skill(p), 0) / 5;
+            return clamp(.35 + (averageRating - 50) * .0085, .28, .80);
         }
         function rosterOf(row) {
             if (row.custom) { const t = customTeams.find(x => x.code === row.code); return t ? t.playerIds.map(id => players.find(p => p.id === id)).filter(Boolean) : []; }
