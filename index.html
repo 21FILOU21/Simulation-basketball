@@ -941,16 +941,62 @@
             renderAll(); $('dataStatus').textContent = status;
         }
         function exportState() {
-            const encodeSeries = series => ({ aCode: series.a.code, bCode: series.b.code, wa: series.wa, wb: series.wb, winnerCode: series.winner.code, loserCode: series.loser.code, conf: series.conf });
+            const encodeSeries = series => series ? ({
+                aCode: series.a?.code ?? series.aCode ?? null,
+                bCode: series.b?.code ?? series.bCode ?? null,
+                wa: Number(series.wa ?? series.winsA) || 0,
+                wb: Number(series.wb ?? series.winsB) || 0,
+                winnerCode: series.winner?.code ?? series.winnerCode ?? null,
+                loserCode: series.loser?.code ?? series.loserCode ?? null,
+                conf: series.conf ?? null
+            }) : null;
+            const encodePlayoffGame = game => ({
+                ...game,
+                homeCode: game.home?.code ?? game.homeCode ?? null,
+                awayCode: game.away?.code ?? game.awayCode ?? null,
+                home: undefined,
+                away: undefined
+            });
+            const encodeCurrentSeries = series => ({
+                ...encodeSeries(series),
+                winsA: Number(series.winsA ?? series.wa) || 0,
+                winsB: Number(series.winsB ?? series.wb) || 0,
+                games: (series.games || []).map(encodePlayoffGame)
+            });
+            let savedPlayoffs = null;
+            if (playoffs) {
+                if (playoffs.confRounds) {
+                    const encodeRounds = rounds => (rounds || []).map(round => ({
+                        name: round.name,
+                        index: round.index,
+                        conf: round.conf,
+                        series: (round.series || []).map(encodeCurrentSeries)
+                    }));
+                    savedPlayoffs = {
+                        confRounds: {
+                            West: encodeRounds(playoffs.confRounds.West),
+                            East: encodeRounds(playoffs.confRounds.East)
+                        },
+                        currentRound: Number(playoffs.currentRound) || 0,
+                        championCode: playoffs.champion?.code ?? null,
+                        runnerUpCode: playoffs.runnerUp?.code ?? null,
+                        final: encodeCurrentSeries(playoffs.final)
+                    };
+                } else {
+                    savedPlayoffs = {
+                        rounds: (playoffs.rounds || []).map(round => ({ name: round.name, series: (round.series || []).map(encodeSeries) })),
+                        championCode: playoffs.champion?.code ?? null,
+                        runnerUpCode: playoffs.runnerUp?.code ?? null,
+                        final: encodeSeries(playoffs.final)
+                    };
+                }
+            }
             const data = {
-                format: 'nba-sim-lab-save', version: 3, seasonYear, phase, resultsLabel, nextPlayerId, followedPlayerId, players, seasonCalendar,
+                format: 'nba-sim-lab-save', version: 4, seasonYear, phase, resultsLabel, nextPlayerId, followedPlayerId, players, seasonCalendar,
                 customTeams, nextCustomTeamId, history, retired, lastAwards, lastOffseason,
                 lastDraft: lastDraft ? { season: lastDraft.season, rows: lastDraft.rows.map(row => ({ ...row, player: undefined, playerId: row.player.id })) } : null,
                 seasonResults, seasonLines: Object.fromEntries(seasonLines), seasonStatHistory,
-                playoffs: playoffs ? {
-                    rounds: playoffs.rounds.map(round => ({ name: round.name, series: round.series.map(encodeSeries) })),
-                    championCode: playoffs.champion.code, runnerUpCode: playoffs.runnerUp.code, final: encodeSeries(playoffs.final)
-                } : null
+                playoffs: savedPlayoffs
             };
             download(JSON.stringify(data, null, 2), `nba_sim_lab_save_${seasonLabel(seasonYear)}.json`, 'application/json;charset=utf-8');
         }
@@ -2095,8 +2141,15 @@
                     catch (error) { self.postMessage({ ok: false, error: error && error.message ? error.message : 'JSON invalide' }); }
                 };
             `;
-            const workerUrl = URL.createObjectURL(new Blob([workerSource], { type: 'text/javascript' }));
-            const worker = new Worker(workerUrl);
+            let workerUrl = null, worker = null;
+            try {
+                workerUrl = URL.createObjectURL(new Blob([workerSource], { type: 'text/javascript' }));
+                worker = new Worker(workerUrl);
+            } catch (error) {
+                if (workerUrl) URL.revokeObjectURL(workerUrl);
+                // Some browser policies block Blob workers; preserve compatibility by falling back.
+                return JSON.parse(sourceText);
+            }
             return new Promise((resolve, reject) => {
                 let finished = false;
                 const cleanup = () => {
@@ -2110,11 +2163,17 @@
                     if (event.data && event.data.ok) resolve(event.data.value);
                     else reject(new Error(event.data && event.data.error || 'Le fichier JSON est invalide.'));
                 };
-                worker.onerror = event => {
+                worker.onerror = () => {
                     cleanup();
-                    reject(new Error(event.message || 'Échec du lecteur JSON en arrière-plan.'));
+                    try { resolve(JSON.parse(sourceText)); }
+                    catch (parseError) { reject(parseError); }
                 };
-                worker.postMessage(sourceText);
+                try { worker.postMessage(sourceText); }
+                catch (error) {
+                    cleanup();
+                    try { resolve(JSON.parse(sourceText)); }
+                    catch (parseError) { reject(parseError); }
+                }
             });
         }
         $('importFile').onchange = async e => {
@@ -2137,10 +2196,10 @@
                 setImportStatus('Initialisation de ' + list.length.toLocaleString('fr-CA') + ' joueurs et de la saison…');
                 await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
                 load(list, 'Import réussi : ' + list.length + ' joueurs depuis ' + f.name + '.', Array.isArray(data) ? null : data);
-                window.dispatchEvent(new CustomEvent('mynba:save-load-result', { detail: { ok: true, players: list.length, hasCustomTeams: Array.isArray(customTeams) && customTeams.length > 0 } }));
+                document.dispatchEvent(new CustomEvent('mynba:save-load-result', { detail: { ok: true, players: list.length, hasCustomTeams: Array.isArray(customTeams) && customTeams.length > 0 } }));
             } catch (err) {
                 const message = err && err.message ? err.message : String(err);
-                window.dispatchEvent(new CustomEvent('mynba:save-load-result', { detail: { ok: false, error: message } }));
+                document.dispatchEvent(new CustomEvent('mynba:save-load-result', { detail: { ok: false, error: message } }));
                 if (gmStatus) {
                     const target = document.getElementById('gmStatus');
                     if (target) target.textContent = 'Échec du chargement : ' + message;
