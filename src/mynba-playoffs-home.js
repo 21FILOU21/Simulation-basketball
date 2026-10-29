@@ -35,12 +35,10 @@
         const stored = $("seasonCalendarView");
         if (stored) calendarView = stored;
       }
-      if (calendarView && calendarView.parentElement === home) {
-        calendarView.hidden = true;
-        if (section.parentElement !== home) home.replaceChild(section, calendarView);
-      } else if (section.parentElement !== home) {
-        home.appendChild(section);
-      }
+      // Never detach seasonCalendarView from the document: renderSeasonCalendar()
+      // still updates it on every playoff simulation, even while it is hidden.
+      if (calendarView) calendarView.hidden = true;
+      if (section.parentElement !== home) home.appendChild(section);
       if (homeHeading) homeHeading.textContent = "Playoffs NBA";
       if (homeDescription) homeDescription.textContent = "Le tableau des séries remplace maintenant les tuiles de la saison régulière. Clique sur un match pour le simuler, puis ouvre son box score.";
       if (seasonBadge) seasonBadge.textContent = "PLAYOFFS";
@@ -65,7 +63,6 @@
     const calendar = calendarView || $("seasonCalendarView");
     if (home && calendar && section && section.parentElement === home) {
       section.hidden = true;
-      home.replaceChild(calendar, section);
       calendar.hidden = false;
       if (homeHeading) homeHeading.textContent = originalHeading || "Calendrier de la saison";
       if (homeDescription) homeDescription.textContent = originalDescription || "Choisis une équipe et clique sur une tuile pour simuler sa prochaine rencontre.";
