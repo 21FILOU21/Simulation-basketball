@@ -6,7 +6,7 @@ const root = path.join(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const nav = fs.readFileSync(path.join(root, "src", "mynba-navigation.js"), "utf8");
 const fixes = fs.readFileSync(path.join(root, "src", "mynba-quality-fixes.js"), "utf8");
-const inline = [...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi)].map(m => m[1]).filter(Boolean).at(-1);
+const inline = html.split("<script>")[1]?.split("</script>")[0] || "";
 
 assert.ok(inline, "The inline app script should exist.");
 new Function(inline);
