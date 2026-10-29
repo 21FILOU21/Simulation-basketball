@@ -285,12 +285,12 @@ function installActualRegularBox() {
         return roster.map(p=>{
           const l=lines[String(p.id)]||{pts:0,ast:0,reb:0,stl:0,blk:0,minutes:0};
           const pts=Number(l.pts)||0,min=clamp(Number(l.minutes)||0,0,48);
-          const fga=Math.max(0,Math.round(pts/Math.max(1.1,Number(p.ts)||.55)/2));
-          const threeA=Math.min(fga,Math.max(0,Math.round(fga*(Number(p.three)||.35))));
-          const threeM=Math.min(threeA,Math.round(pts/3*.25));
-          const fgm=Math.min(fga,Math.max(0,Math.round((pts-threeM*3)/2)));
-          const ftm=Math.max(0,pts-threeM*3-fgm*2);
-          return {name:p.name,min:min,pts:pts,fgm:fgm,fga:fga,threeM:threeM,threeA:threeA,ftm:ftm,fta:Math.max(ftm,Math.round(ftm/.75)),reb:Number(l.reb)||0,ast:Number(l.ast)||0,stl:Number(l.stl)||0,blk:Number(l.blk)||0,to:Math.max(0,Math.round((Number(l.ast)||0)*.18)),pf:Math.min(6,Math.round(min/12)),pm:Math.round((score-opp)*min/48)};
+          const fga=Math.max(0,Number.isFinite(Number(l.fga))?Number(l.fga):Math.round(pts/Math.max(1.1,Number(p.ts)||.55)/2));
+          const threeA=Math.min(fga,Math.max(0,Number.isFinite(Number(l.threeAttempts))?Number(l.threeAttempts):Math.round(fga*(Number(p.three)||.35))));
+          const threeM=Math.min(threeA,Math.max(0,Number.isFinite(Number(l.threeMade))?Number(l.threeMade):Math.round(pts/3*.25)));
+          const fgm=Math.min(fga,Math.max(0,Number.isFinite(Number(l.fgm))?Number(l.fgm):Math.round((pts-threeM*3)/2)));
+          const ftm=Math.max(0,Number.isFinite(Number(l.ftm))?Number(l.ftm):pts-threeM*3-fgm*2);
+          return {name:p.name,min:min,pts:pts,fgm:fgm,fga:fga,threeM:threeM,threeA:threeA,ftm:ftm,fta:Math.max(ftm,Number(l.fta)||Math.round(ftm/.75)),reb:Number(l.reb)||0,ast:Number(l.ast)||0,stl:Number(l.stl)||0,blk:Number(l.blk)||0,to:Number(l.tov)||Math.max(0,Math.round((Number(l.ast)||0)*.18)),pf:Number(l.pf)||Math.min(6,Math.round(min/12)),pm:Math.round((score-opp)*min/48)};
         });
       };
       game.mynbaBoxScore={home:buildRows(game.home.code,game.homeScore,game.awayScore),away:buildRows(game.away.code,game.awayScore,game.homeScore)};
