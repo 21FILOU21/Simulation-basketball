@@ -323,10 +323,50 @@
             .mobile-nav { display: none !important }
             .mobile-nav-toggle { display: none !important }
         }
+
+        body.gm-startup { overflow: hidden; }
+        .gm-start:not([hidden]) ~ main { visibility: hidden; }
+        .gm-start { position: fixed; inset: 0; z-index: 99999; display:flex; align-items:center; justify-content:center; overflow:auto; padding:22px; background:radial-gradient(ellipse at 50% 0%,#203e68 0%,#080d19 70%); }
+        .gm-card { width:min(900px,100%); max-height:calc(100dvh - 44px); overflow:auto; border:1px solid #36547e; border-radius:24px; background:linear-gradient(145deg,#14233c,#0c1424); padding:clamp(20px,4vw,44px); box-shadow:0 30px 100px #0009; }
+        .gm-brand { color:#ffb45c; letter-spacing:.22em; font-weight:900; font-size:12px; text-transform:uppercase; }
+        .gm-title { font-size:clamp(36px,7vw,72px); line-height:1; margin:12px 0; font-weight:950; letter-spacing:-.045em; }
+        .gm-subtitle { max-width:650px; font-size:17px; }
+        .gm-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:26px; }
+        .gm-primary { border:0; border-radius:12px; padding:14px 20px; font-weight:850; color:#07111f; background:#ffb45c; cursor:pointer; }
+        .gm-secondary { border:1px solid #49678f; border-radius:12px; padding:14px 20px; color:#edf3ff; background:#172943; cursor:pointer; font-weight:750; }
+        .gm-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:20px 0; }
+        .gm-field { display:flex; flex-direction:column; gap:6px; color:#b8c9e2; font-size:13px; font-weight:700; }
+        .gm-field input,.gm-field select { width:100%; border:1px solid #405a7b; background:#091322; color:#f4f7ff; padding:12px; border-radius:9px; font:inherit; }
+        .gm-progress { height:5px; background:#23354e; border-radius:20px; overflow:hidden; margin:18px 0; }
+        .gm-progress span { display:block; width:0; height:100%; background:#ffb45c; transition:width .35s; }
+        .gm-wheel { margin:22px auto; width:150px; height:150px; border-radius:50%; display:grid; place-items:center; text-align:center; font-size:18px; font-weight:900; color:#08111e; border:7px solid #e8efff; background:conic-gradient(#ffb45c 0 60deg,#5b9dff 60deg 120deg,#7ee0bb 120deg 180deg,#8f83ff 180deg 240deg,#ff7f92 240deg 300deg,#ffb45c 300deg); box-shadow:0 0 0 5px #243c5b,0 15px 40px #0008; transition:transform 1.3s cubic-bezier(.12,.75,.15,1); }
+        .gm-roster { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin:18px 0; }
+        .gm-player { border:1px solid #344c6d; border-radius:10px; padding:10px; min-height:88px; background:#0b1728; font-size:12px; overflow-wrap:anywhere; }
+        .gm-player b { display:block; color:#fff; margin-bottom:5px; }
+        .gm-player.active { border-color:#ffb45c; box-shadow:inset 0 0 0 1px #ffb45c; }
+        .gm-spinner { display:inline-block; width:13px; height:13px; border:2px solid #5c7392; border-top-color:#ffb45c; border-radius:50%; vertical-align:-2px; animation:gm-spin .7s linear infinite; }
+        @keyframes gm-spin { to { transform:rotate(360deg); } }
+        .gm-status { color:#b5c8e5; min-height:24px; }
+        .gm-prospects { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:18px; }
+        .gm-prospect { border:1px solid #3a557a; background:#101f34; color:#f4f7ff; border-radius:12px; padding:15px; text-align:left; cursor:pointer; }
+        .gm-prospect:hover { border-color:#ffb45c; }
+        @media(max-width:620px) { .gm-fields,.gm-prospects {grid-template-columns:1fr}.gm-roster {grid-template-columns:repeat(2,minmax(0,1fr))}.gm-card {padding:20px} }
     </style>
 </head>
 
-<body>
+<body class="gm-startup">
+    <section class="gm-start" id="myGMStart" aria-modal="true" role="dialog" aria-label="Bienvenue dans MyGM">
+      <div class="gm-card" id="myGMCard">
+        <div class="gm-brand">NBA SIM LAB · MODE GESTIONNAIRE</div>
+        <div class="gm-title">Bienvenue<br>dans MyGM.</div>
+        <p class="gm-subtitle">Construis ta franchise, choisis tes cinq premiers joueurs à la roue, gère la saison et sélectionne un prospect à la Draft après les playoffs.</p>
+        <div class="gm-actions">
+          <button class="gm-primary" id="gmLoadSave">Charger une sauvegarde JSON</button>
+          <button class="gm-secondary" id="gmStartDemo">Commencer une démo</button>
+        </div>
+        <p class="gm-status" id="gmStatus">Ta carrière commence ici.</p>
+      </div>
+    </section>
     <main>
         <div class="top">
             <div>
@@ -394,6 +434,7 @@
                         <label class="field" style="flex:2">Nom de l’équipe<input id="customTeamName" placeholder="Ex. Montréal Meteors"></label>
                         <label class="field">Code (3-5)<input id="customTeamCode" maxlength="5" placeholder="MTL" style="min-width:90px"></label>
                         <label class="field">Conférence<select id="customTeamConference"><option value="East">Est</option><option value="West">Ouest</option></select></label>
+                        <label class="field">Ville<input id="customTeamCity" placeholder="Montréal"></label>
                     </div>
                     <div class="actions" style="margin-top:12px">
                         <button class="btn primary" id="createCustomTeam">Créer l’équipe</button>
@@ -978,7 +1019,7 @@
             if (customTeams.some(t => String(t.id) === selected)) $('customTeamSelect').value = selected;
             $('customTeamsTable').innerHTML = customTeams.map(t => {
                 const roster = t.playerIds.map(id => players.find(p => p.id === id)).filter(Boolean);
-                return `<tr><td><b>${esc(t.name)}</b><br><span class="muted">${esc(t.code)}</span></td><td>${t.conference === 'East' ? 'Est' : 'Ouest'}</td><td>${roster.map(p => esc(p.name)).join(', ') || 'Aucun joueur'}</td><td>${(customTeamStrength(t) * 100).toFixed(1)}</td></tr>`;
+                return `<tr><td><b>${esc(t.name)}</b><br><span class="muted">${esc(t.code)}${t.city ? ' · ' + esc(t.city) : ''}</span></td><td>${t.conference === 'East' ? 'Est' : 'Ouest'}</td><td>${roster.map(p => esc(p.name)).join(', ') || 'Aucun joueur'}</td><td>${(customTeamStrength(t) * 100).toFixed(1)}</td></tr>`;
             }).join('');
         }
         function teamFormValues() {
@@ -987,7 +1028,7 @@
             if (starters.some(s => !s)) { alert('Remplis les cinq spots avant de créer l’équipe.'); return null; }
             let code = $('customTeamCode').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
             if (!code) code = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 3) || `CUS${nextCustomTeamId}`;
-            return { name, code, conference: $('customTeamConference').value, playerIds: starters.map(s => s.id) };
+            return { name, code, conference: $('customTeamConference').value, city: ($('customTeamCity')?.value || '').trim(), playerIds: starters.map(s => s.id) };
         }
         function validateCustomRoster(ids, teamId = null) {
             const duplicate = customTeams.find(t => t.id !== teamId && t.playerIds.some(id => ids.includes(id)));
@@ -1036,7 +1077,7 @@
             }
         }
         function clearTeamForm() {
-            $('customTeamName').value = ''; $('customTeamCode').value = ''; $('customTeamSelect').value = '';
+            $('customTeamName').value = ''; $('customTeamCode').value = ''; $('customTeamCity').value = ''; $('customTeamSelect').value = '';
             starters = [null, null, null, null, null]; renderSlots(); renderPicks();
         }
         function refreshCustomTeamSeasonSchedule() {
@@ -1081,7 +1122,7 @@
         $('clearCustomTeam').onclick = () => { clearTeamForm(); setTeamStatus('Formulaire vidé.'); };
         $('customTeamSelect').onchange = () => {
             const t = customTeams.find(x => x.id === Number($('customTeamSelect').value)); if (!t) return;
-            $('customTeamName').value = t.name; $('customTeamCode').value = t.code; $('customTeamConference').value = t.conference;
+            $('customTeamName').value = t.name; $('customTeamCode').value = t.code; $('customTeamCity').value = t.city || ''; $('customTeamConference').value = t.conference;
             starters = [0, 1, 2, 3, 4].map(i => players.find(p => p.id === t.playerIds[i]) || null); renderSlots();
             renderPicks();
             setTeamStatus(`${t.name} chargée dans ton cinq.`);
@@ -1425,6 +1466,8 @@
             const select = $('scheduleTeamFilter');
             const view = $('seasonCalendarView');
             const summary = $('scheduleSummary');
+            // The calendar remains mounted during playoffs, but guard against older saves/layouts.
+            if (!select || !view || !summary) return;
             view.hidden = phase === 'playoffs';
             summary.textContent = phase === 'playoffs' ? 'Calendrier de saison régulière masqué pendant les playoffs.' : summary.textContent;
             if (!seasonCalendar || !seasonCalendar.games.length) {
@@ -2286,6 +2329,7 @@
     <script src="src/mynba-quality-fixes.js"></script>
     <script src="src/mynba-simulation-engine.js"></script>
 <script src="src/mynba-playoffs-home.js"></script>
+    <script src="src/mynba-gm.js"></script>
 </body>
 
 </html>
