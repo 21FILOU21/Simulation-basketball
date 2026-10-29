@@ -957,12 +957,12 @@
                 home: undefined,
                 away: undefined
             });
-            const encodeCurrentSeries = series => ({
+            const encodeCurrentSeries = series => series ? ({
                 ...encodeSeries(series),
                 winsA: Number(series.winsA ?? series.wa) || 0,
                 winsB: Number(series.winsB ?? series.wb) || 0,
                 games: (series.games || []).map(encodePlayoffGame)
-            });
+            }) : null;
             let savedPlayoffs = null;
             if (playoffs) {
                 if (playoffs.confRounds) {
