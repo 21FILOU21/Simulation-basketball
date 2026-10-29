@@ -79,11 +79,11 @@ function updateActualStats(game) {
         (.7+(Number(tendency.touch==null?50:tendency.touch)/100)*.6)*Math.max(.1,xMinutes(mins,p)/30));
     };
     function xMinutes(items,p) { const found=items.find(x=>String(x.p.id)===String(p.id)); return found?found.m:20; }
-    const pts = weightedAllocate(side.score, roster, weight);
-    const assists = weightedAllocate(Math.round(side.score * .22), roster, p => weight(p) * (.7 + (Number(p.ast)||0)*.09));
-    const rebounds = weightedAllocate(44, roster, p => {const a=p.attributes||{};return weight(p)*(.6+(Number(p.reb)||0)*.05+(Number(a.defensiveRebound)||50)*.012+(Number(a.offensiveRebound)||50)*.008+Math.max(0,(Number(p.height)||200)-195)*.012);});
-    const steals = weightedAllocate(7, roster, p => {const a=p.attributes||{};return weight(p)*(.6+(Number(p.stl)||0)*.08+(Number(a.steal)||50)*.012+(Number(a.perimeterDefense)||50)*.008+(Number(a.speed)||50)*.004);});
-    const blocks = weightedAllocate(5, roster, p => {const a=p.attributes||{};return weight(p)*(.5+(Number(p.blk)||0)*.08+(Number(a.block)||50)*.014+(Number(a.interiorDefense)||50)*.01+Math.max(0,(Number(p.height)||200)-195)*.015);});
+    const pts = weightedAllocate(side.score, roster, weight, 65);
+    const assists = weightedAllocate(Math.round(side.score * .22), roster, p => weight(p) * (.7 + (Number(p.ast)||0)*.09), 15);
+    const rebounds = weightedAllocate(44, roster, p => {const a=p.attributes||{};return weight(p)*(.6+(Number(p.reb)||0)*.05+(Number(a.defensiveRebound)||50)*.012+(Number(a.offensiveRebound)||50)*.008+Math.max(0,(Number(p.height)||200)-195)*.012);}, 25);
+    const steals = weightedAllocate(7, roster, p => {const a=p.attributes||{};return weight(p)*(.6+(Number(p.stl)||0)*.08+(Number(a.steal)||50)*.012+(Number(a.perimeterDefense)||50)*.008+(Number(a.speed)||50)*.004);}, 10);
+    const blocks = weightedAllocate(5, roster, p => {const a=p.attributes||{};return weight(p)*(.5+(Number(p.blk)||0)*.08+(Number(a.block)||50)*.014+(Number(a.interiorDefense)||50)*.01+Math.max(0,(Number(p.height)||200)-195)*.015);}, 10);
     roster.forEach(p => {
       const id=String(p.id), minsValue=mins.find(x=>String(x.p.id)===id);
       const line={pts:pts.get(id)||0,ast:assists.get(id)||0,reb:rebounds.get(id)||0,stl:steals.get(id)||0,blk:blocks.get(id)||0,minutes:Math.min(48,Number(integerMinutes.get(id)||0)),gp:1};
