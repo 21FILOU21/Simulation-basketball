@@ -1019,7 +1019,7 @@
             if (customTeams.some(t => String(t.id) === selected)) $('customTeamSelect').value = selected;
             $('customTeamsTable').innerHTML = customTeams.map(t => {
                 const roster = t.playerIds.map(id => players.find(p => p.id === id)).filter(Boolean);
-                return `<tr><td><b>${esc(t.name)}</b><br><span class="muted">${esc(t.code)}</span></td><td>${t.conference === 'East' ? 'Est' : 'Ouest'}</td><td>${roster.map(p => esc(p.name)).join(', ') || 'Aucun joueur'}</td><td>${(customTeamStrength(t) * 100).toFixed(1)}</td></tr>`;
+                return `<tr><td><b>${esc(t.name)}</b><br><span class="muted">${esc(t.code)}${t.city ? ' · ' + esc(t.city) : ''}</span></td><td>${t.conference === 'East' ? 'Est' : 'Ouest'}</td><td>${roster.map(p => esc(p.name)).join(', ') || 'Aucun joueur'}</td><td>${(customTeamStrength(t) * 100).toFixed(1)}</td></tr>`;
             }).join('');
         }
         function teamFormValues() {
