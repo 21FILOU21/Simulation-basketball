@@ -201,8 +201,11 @@
       return;
     }
     const standings = Array.isArray(seasonResults) ? seasonResults.slice().sort((a,b) => (a.winPct||0)-(b.winPct||0)) : [];
-    const position = Math.max(0, standings.findIndex(t => t.code === team.code));
-    const pickNo = position >= 0 ? position+1 : standings.length+1;
+    let position = standings.findIndex(t => t.code === team.code);
+    const championCode = typeof playoffs !== "undefined" && playoffs && playoffs.champion ? playoffs.champion.code : null;
+    if (championCode && championCode === team.code) position = Math.max(0, standings.length - 1);
+    if (position < 0) position = standings.length;
+    const pickNo = position + 1;
     draftPickTeam = team;
     const usedProspectNames = new Set(players.map(p => p.name));
     prospects = Array.from({length:6},(_,i) => makeRookie(Math.max(.15,.98-(pickNo-1)*.035-i*.055),team.code,resultsLabel||"MyGM",pickNo+i,usedProspectNames));
