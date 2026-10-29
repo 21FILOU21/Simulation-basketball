@@ -1826,7 +1826,7 @@
             const label = resultsLabel, next = seasonLabel(seasonYear + 1);
             const sc = p => p.pts + p.ast * .8 + p.reb * .5;
             // 1) Vieillissement + progression
-            players.forEach(p => { const before = sc(p), overallBefore = overallRating(p); p.age++; progress(p); p.rookie = false; p.season = next; p._delta = sc(p) - before; p._mynbaOverallDelta = overallRating(p) - overallBefore; p._mynbaDeltaStartGames = Number(seasonCalendar?.games?.filter(g => g.status === 'completed').length) || 0; });
+            players.forEach(p => { const before = sc(p), overallBefore = overallRating(p); p.age++; progress(p); p.rookie = false; p.season = next; p._delta = sc(p) - before; p._mynbaOverallDelta = overallRating(p) - overallBefore; p._mynbaDeltaStartGames = 0; });
             // 2) Retraites
             const retiredNow = [], gone = new Set();
             players.forEach(p => {
