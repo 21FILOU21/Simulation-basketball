@@ -71,16 +71,19 @@ function updateActualStats(game) {
     const weight = p => {
       const a = p.attributes || {};
       const tendency = typeof window.NBAMyNBATendency === "function" ? window.NBAMyNBATendency(p) : {};
-      return Math.max(1, (overall(p)*.55 + (Number(p.pts)||0)*.7 + (Number(p.ast)||0)*.35 +
-        (Number(p.reb)||0)*.25 + (Number(a.shooting)||50)*.12 + (Number(a.finishing)||50)*.08) *
-        (.75 + (Number(tendency.touch == null ? 50 : tendency.touch)/100)*.5) * Math.max(.1,xMinutes(mins,p)/30));
+      const shooting=Number(a.threePoint||a.shooting)||50,finishing=Number(a.finishing)||50;
+      const playmaking=Number(a.playmaking||a.passing)||50,defense=((Number(a.interiorDefense)||50)+(Number(a.perimeterDefense)||50))/2;
+      const speed=Number(a.speed)||50,stamina=Number(a.stamina)||65;
+      return Math.max(1,(overall(p)*.32+(Number(p.pts)||0)*.45+(Number(p.ast)||0)*.2+(Number(p.reb)||0)*.15+
+        shooting*.16+finishing*.14+playmaking*.08+defense*.035+speed*.025+stamina*.02)*
+        (.7+(Number(tendency.touch==null?50:tendency.touch)/100)*.6)*Math.max(.1,xMinutes(mins,p)/30));
     };
     function xMinutes(items,p) { const found=items.find(x=>String(x.p.id)===String(p.id)); return found?found.m:20; }
     const pts = weightedAllocate(side.score, roster, weight);
     const assists = weightedAllocate(Math.round(side.score * .22), roster, p => weight(p) * (.7 + (Number(p.ast)||0)*.09));
-    const rebounds = weightedAllocate(44, roster, p => weight(p) * (.8 + (Number(p.reb)||0)*.07 + (Number((p.attributes||{}).rebounding)||50)*.01));
-    const steals = weightedAllocate(7, roster, p => weight(p) * (.8 + (Number(p.stl)||0)*.12));
-    const blocks = weightedAllocate(5, roster, p => weight(p) * (.7 + (Number(p.blk)||0)*.15 + (Number((p.attributes||{}).block)||50)*.01));
+    const rebounds = weightedAllocate(44, roster, p => {const a=p.attributes||{};return weight(p)*(.6+(Number(p.reb)||0)*.05+(Number(a.defensiveRebound)||50)*.012+(Number(a.offensiveRebound)||50)*.008+Math.max(0,(Number(p.height)||200)-195)*.012);});
+    const steals = weightedAllocate(7, roster, p => {const a=p.attributes||{};return weight(p)*(.6+(Number(p.stl)||0)*.08+(Number(a.steal)||50)*.012+(Number(a.perimeterDefense)||50)*.008+(Number(a.speed)||50)*.004);});
+    const blocks = weightedAllocate(5, roster, p => {const a=p.attributes||{};return weight(p)*(.5+(Number(p.blk)||0)*.08+(Number(a.block)||50)*.014+(Number(a.interiorDefense)||50)*.01+Math.max(0,(Number(p.height)||200)-195)*.015);});
     roster.forEach(p => {
       const id=String(p.id), minsValue=mins.find(x=>String(x.p.id)===id);
       const line={pts:pts.get(id)||0,ast:assists.get(id)||0,reb:rebounds.get(id)||0,stl:steals.get(id)||0,blk:blocks.get(id)||0,minutes:Math.min(48,Number(integerMinutes.get(id)||0)),gp:1};
@@ -91,10 +94,53 @@ function updateActualStats(game) {
   });
   boxScores[String(game.id)] = gameBox;
 }
+function ensureMinimumRoster(code) {
+  const actualCode=teamCodeForSchedule(code);
+  const custom=(typeof customTeams!=="undefined"?customTeams:[]).find(t=>String(t.code)===String(actualCode));
+  let roster=(players||[]).filter(p=>String(p.team)===String(actualCode));
+  let nextId=typeof nextPlayerId!=="undefined"?Number(nextPlayerId):Math.max(999,...(players||[]).map(p=>Number(p.id)||0))+1;
+  let n=1;
+  while(roster.length<5){
+    const id=nextId++;
+    const rookie={
+      id:id,name:"Rookie "+String(actualCode)+" "+n++,team:actualCode,age:19,rookie:true,
+      pos:["PG","SG","SF","PF","C"][roster.length],height:[185,193,198,205,211][roster.length],
+      weight:[80,88,94,104,112][roster.length],pts:8,reb:3.5,ast:2.2,stl:.7,blk:.4,
+      ts:.52,three:.34,mpg:48,history:[],trophies:[],
+      attributes:{finishing:58,playmaking:54,passing:54,ballHandle:55,threePoint:55,steal:48,block:48,speed:62,interiorDefense:48,perimeterDefense:50,defensiveRebound:52,offensiveRebound:50,strength:52,vertical:54,stamina:70,offensiveIQ:50,defensiveIQ:50}
+    };
+    if((players||[]).some(p=>String(p.id)===String(id))){nextId=Math.max(nextId,...(players||[]).map(p=>(Number(p.id)||0)+1));continue;}
+    players.push(rookie);roster.push(rookie);
+    if(custom&&!custom.playerIds.includes(id))custom.playerIds.push(id);
+  }
+  if(typeof nextPlayerId!=="undefined")nextPlayerId=nextId;
+  if(typeof window.NBAMyNBARosterChanged==="function")window.NBAMyNBARosterChanged();
+  return roster;
+}
+function attributeTeamStrength(code) {
+  const roster=ensureMinimumRoster(code).slice().sort((a,b)=>overall(b)-overall(a)).slice(0,5);
+  const rating=p=>{
+    const a=p.attributes||{};
+    const avg=(keys,fallback=50)=>keys.reduce((n,k)=>n+(Number(a[k])||fallback),0)/keys.length;
+    const offense=avg(["finishing","threePoint","playmaking","passing","ballHandle"]);
+    const defense=avg(["interiorDefense","perimeterDefense","steal","block","defensiveRebound"]);
+    const physical=avg(["speed","strength","vertical","stamina"]);
+    return overall(p)*.45+offense*.25+defense*.20+physical*.10;
+  };
+  return clamp(.35+(roster.reduce((n,p)=>n+rating(p),0)/Math.max(1,roster.length)-50)*.0085,.28,.8);
+}
 function installGameTracking() {
   if (typeof window.simulateScheduledGame !== "function" || window.simulateScheduledGame.__actualStatsWrapped) return;
   const original=window.simulateScheduledGame;
   const wrapped=function(game) {
+    if(game&&game.home&&game.away){
+      ensureMinimumRoster(game.home.code);ensureMinimumRoster(game.away.code);
+      const homeCode=teamCodeForSchedule(game.home.code),awayCode=teamCodeForSchedule(game.away.code);
+      const home=seasonCalendar&&seasonCalendar.teams.find(t=>String(t.scheduleCode||t.code)===String(game.home.code));
+      const away=seasonCalendar&&seasonCalendar.teams.find(t=>String(t.scheduleCode||t.code)===String(game.away.code));
+      if(home)home.strength=attributeTeamStrength(homeCode);
+      if(away)away.strength=attributeTeamStrength(awayCode);
+    }
     const result=original.apply(this,arguments);
     if (game && game.status === "completed" && !boxScores[String(game.id)]) updateActualStats(game);
     return result;
@@ -134,8 +180,8 @@ function scheduleDialog(game) {
     if(action==="cancel")return;
     if(action==="box") { if(typeof window.NBAMyNBAShowRegularBox==="function")window.NBAMyNBAShowRegularBox(game); return; }
     try {
-      if(action==="one") window.simulateScheduledGame(game);
-      else if(action==="until" && typeof window.simulateThroughRound==="function") window.simulateThroughRound(game.round);
+      if((action==="one"||action==="until") && typeof window.simulateThroughRound==="function") window.simulateThroughRound(game.round);
+      else if(action==="one") window.simulateScheduledGame(game);
       if(typeof window.updateTeamSeasonAverages==="function")window.updateTeamSeasonAverages();
       if(typeof window.renderAll==="function")window.renderAll();
     } catch(err) { alert("Impossible de simuler ce match : "+err.message); }
