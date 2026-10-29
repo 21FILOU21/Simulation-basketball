@@ -432,6 +432,7 @@
                         <label class="field" style="flex:2">Nom de l’équipe<input id="customTeamName" placeholder="Ex. Montréal Meteors"></label>
                         <label class="field">Code (3-5)<input id="customTeamCode" maxlength="5" placeholder="MTL" style="min-width:90px"></label>
                         <label class="field">Conférence<select id="customTeamConference"><option value="East">Est</option><option value="West">Ouest</option></select></label>
+                        <label class="field">Ville<input id="customTeamCity" placeholder="Montréal"></label>
                     </div>
                     <div class="actions" style="margin-top:12px">
                         <button class="btn primary" id="createCustomTeam">Créer l’équipe</button>
@@ -1025,7 +1026,7 @@
             if (starters.some(s => !s)) { alert('Remplis les cinq spots avant de créer l’équipe.'); return null; }
             let code = $('customTeamCode').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
             if (!code) code = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 3) || `CUS${nextCustomTeamId}`;
-            return { name, code, conference: $('customTeamConference').value, playerIds: starters.map(s => s.id) };
+            return { name, code, conference: $('customTeamConference').value, city: ($('customTeamCity')?.value || '').trim(), playerIds: starters.map(s => s.id) };
         }
         function validateCustomRoster(ids, teamId = null) {
             const duplicate = customTeams.find(t => t.id !== teamId && t.playerIds.some(id => ids.includes(id)));
@@ -1074,7 +1075,7 @@
             }
         }
         function clearTeamForm() {
-            $('customTeamName').value = ''; $('customTeamCode').value = ''; $('customTeamSelect').value = '';
+            $('customTeamName').value = ''; $('customTeamCode').value = ''; $('customTeamCity').value = ''; $('customTeamSelect').value = '';
             starters = [null, null, null, null, null]; renderSlots(); renderPicks();
         }
         function refreshCustomTeamSeasonSchedule() {
@@ -1119,7 +1120,7 @@
         $('clearCustomTeam').onclick = () => { clearTeamForm(); setTeamStatus('Formulaire vidé.'); };
         $('customTeamSelect').onchange = () => {
             const t = customTeams.find(x => x.id === Number($('customTeamSelect').value)); if (!t) return;
-            $('customTeamName').value = t.name; $('customTeamCode').value = t.code; $('customTeamConference').value = t.conference;
+            $('customTeamName').value = t.name; $('customTeamCode').value = t.code; $('customTeamCity').value = t.city || ''; $('customTeamConference').value = t.conference;
             starters = [0, 1, 2, 3, 4].map(i => players.find(p => p.id === t.playerIds[i]) || null); renderSlots();
             renderPicks();
             setTeamStatus(`${t.name} chargée dans ton cinq.`);
@@ -2326,6 +2327,7 @@
     <script src="src/mynba-quality-fixes.js"></script>
     <script src="src/mynba-simulation-engine.js"></script>
 <script src="src/mynba-playoffs-home.js"></script>
+    <script src="src/mynba-gm.js"></script>
 </body>
 
 </html>
